@@ -1,0 +1,51 @@
+<div id="keys-gate" class="keys-gate">
+  <div class="keys-gate-box">
+    <div class="keys-gate-icon">🔐</div>
+    <h2>Verify you're human</h2>
+    <p>Complete the challenge to access API key management.</p>
+    <div id="keys-turnstile-wrap" style="display:flex;justify-content:center;min-height:65px;margin:16px 0"></div>
+    <div id="keys-gate-status" class="keys-gate-status"></div>
+  </div>
+</div>
+
+<div id="keys-content" style="display:none">
+  <div class="card">
+    <h2>🔑 Generate an API Key</h2>
+    <p class="card-lead">
+      Get a domain-bound API key to use the autocomplete API from your own application.
+    </p>
+    <div style="width:100%">
+      <label for="ak-domain" style="display:block;font-size:var(--fs-sm);font-weight:500;margin-bottom:4px">Your Domain</label>
+      <input class="ac-input" id="ak-domain" type="text" placeholder="e.g. myapp.com" spellcheck="false" style="width:100%;margin-bottom:8px">
+      <button id="ak-submit" class="btn" style="width:100%">Generate API Key</button>
+    </div>
+    <div id="ak-result" style="margin-top:12px;display:none"></div>
+  </div>
+
+  <div class="card" style="border-left:3px solid var(--green)">
+    <h2>🔑 Manage with API Key</h2>
+    <p class="card-lead">
+      Have an existing API key? Enter your domain and paste the full key.
+    </p>
+    <div style="margin-bottom:6px">
+      <input class="ac-input" id="ak-mgmt-domain" type="text" placeholder="Domain (e.g. myapp.com)" spellcheck="false" style="width:100%;margin-bottom:6px">
+      <input class="ac-input" id="ak-mgmt-key" type="text" placeholder="Full API key (e.g. gnaf_pk_...)" spellcheck="false" style="width:100%;margin-bottom:6px;font-family:var(--mono);font-size:var(--fs-xs)">
+      <button id="ak-mgmt-btn" class="btn" style="width:100%">Manage Keys</button>
+    </div>
+    <div id="ak-mgmt-error" style="font-size:var(--fs-sm);color:var(--muted);margin-top:4px"></div>
+    <div id="ak-mgmt-result" style="margin-top:8px;font-size:var(--fs-sm)"></div>
+  </div>
+
+  <div class="card" style="border-left:3px solid var(--orange)">
+    <h2>🔐 DNS Recovery (lost all keys)</h2>
+    <p class="card-lead">
+      Lost all keys? Add a DNS TXT record to prove ownership.
+    </p>
+    <div style="width:100%">
+      <input class="ac-input" id="ak-recover-domain" type="text" placeholder="e.g. myapp.com" spellcheck="false" style="width:100%;margin-bottom:8px">
+      <button id="ak-recover-btn" class="btn" style="width:100%">Start Recovery</button>
+      <div id="ak-recover-step" style="font-size:var(--fs-sm);color:var(--muted);margin-top:8px"></div>
+    </div>
+    <div id="ak-recover-result" style="margin-top:8px;font-size:var(--fs-sm)"></div>
+  </div>
+</div>

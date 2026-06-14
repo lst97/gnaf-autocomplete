@@ -1,0 +1,599 @@
+  <div class="card">
+    <h2>Health & Diagnostics</h2>
+    <div class="flex mb-3">
+      <button id="healthzBtn" class="btn btn-sm btn-green">GET /healthz</button>
+      <button id="readyzBtn"  class="btn btn-sm btn-green">GET /readyz</button>
+      <button id="warmupBtn"  class="btn btn-sm btn-yellow">POST /warmup</button>
+    </div>
+    <pre id="sysResult" class="code-block" style="min-height:3em;max-height:300px">Click a button to test.</pre>
+  </div>
+
+  <div class="card">
+    <h2>🧠 Query Tiers Explained</h2>
+    <p class="card-lead">
+      Every query is routed to the <strong>fastest index</strong> matching what
+      the user typed. Tiers were benchmarked with 1000 mixed queries
+      on <code>MacBook Pro M5 Pro (48GB)</code> ·
+      <code>macOS 26.5.1</code> · <code>Bun 1.3.14</code> ·
+      <code>Postgres 18-bookworm (Docker)</code> · 16M addresses.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Tier</th><th>Trigger</th><th>Avg latency</th><th>p95</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>tier0</code></td><td>State + postcode (e.g. "VIC 3167")</td><td>~10ms</td><td>43ms</td></tr>
+          <tr><td><code>postcode</code></td><td>Purely numeric 2‑4 digit query</td><td>~16ms</td><td>27ms</td></tr>
+          <tr><td><code>tier0_number</code></td><td>State + street number (e.g. "1090 VIC")</td><td>~36ms</td><td>91ms</td></tr>
+          <tr><td><code>tier0_locality</code></td><td>State + locality prefix (e.g. "syd NSW")</td><td>~5ms</td><td>9ms</td></tr>
+          <tr><td><code>tier1</code></td><td>Street name prefix (<strong>now also 1-2 char streets</strong> like "y st", "pi st")</td><td><strong>~10ms</strong></td><td><strong>~31ms</strong></td></tr>
+          <tr><td><code>typo_corrected</code></td><td>Street/locality/state typo (in-memory corrector rewrites, then tier1) — <em>~10µs corrector + tier1 cost</em></td><td>~10ms</td><td>~31ms</td></tr>
+          <tr><td><code>tier4</code></td><td>Multi‑word GIN trigram fallback (rarely hit — <strong>most queries now route to tier1</strong>)</td><td>~40ms</td><td>~50ms</td></tr>
+          <tr><td><code>tier2</code></td><td>Single‑word GIN trigram fallback</td><td>~47ms</td><td>55ms</td></tr>
+          <tr><td class="text-blue"><code>↺ cache</code></td><td>In‑process LRU (repeated queries, <code>?no_cache=1</code> to bypass)</td><td>&lt;1ms</td><td>&lt;1ms</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="card-lead mt-3">
+      <strong>Full workload benchmark</strong> (1000 mixed queries, 31 distinct query shapes):
+      <code>p50 9.2ms · p95 31.9ms · p99 51.7ms · avg 12.5ms · max 181.8ms</code>.
+      Numbers reflect <strong>cold-cache</strong> latency (<code>&amp;no_cache=1</code>).
+      The tier1 prefix requirement was lowered to 1 char (was 3), so most queries
+      including "y st"/"pi st" and short strings like "ab cd sydney" now hit the
+      fast btree index instead of the slow GIN trigram index.
+      Repeated queries are &lt;1ms with the in-process LRU.
+      Run <code>bun run benchmark/bench.ts</code> to reproduce.
+    </p>
+    <div class="callout router-flow">
+      <div class="router-col">
+        <strong class="router-col-title">🔄 Query Router</strong>
+        <p class="text-muted" style="font-size:0.85rem">
+          Every query goes through a hardcoded decision tree that picks the cheapest index.
+          The router checks each condition in order and returns the first match:
+        </p>
+        <div class="tier-rows">
+          <div class="tier-row">
+            <span class="tier-badge t0">tier0</span>
+            <div class="tier-desc">
+              <strong>State + postcode equality</strong> — btree composite index on <code>(state, postcode)</code>.
+              Fastest tier: a single Index-Only Scan returns results in under 1ms.
+              Only fires when the query has both a state filter <em>and</em> a postcode filter
+              (e.g. <code>"sydney nsw 2000"</code> or <code>?state=NSW&amp;postcode=2000</code>).
+              <span class="corrector-meta">p50: 1.4ms · p95: 3.7ms · Index: <code>idx_mv_tier0_state_postcode</code></span>
+            </div>
+          </div>
+          <div class="tier-row">
+            <span class="tier-badge pc">postcode</span>
+            <div class="tier-desc">
+              <strong>Postcode prefix match</strong> — btree on <code>(postcode text_pattern_ops)</code>.
+              Triggers when the entire query is a 2-4 digit numeric string (e.g. <code>"2000"</code> or <code>"20"</code>).
+              For 4-digit exact postcodes uses equality (index Cond, no recheck).
+              For shorter prefixes uses a LIKE range scan.
+              <span class="corrector-meta">p50: 0.3ms · p95: 1.1ms · Index: <code>idx_mv_postcode_prefix</code></span>
+            </div>
+          </div>
+          <div class="tier-row">
+            <span class="tier-badge t0c">tier0_number</span>
+            <div class="tier-desc">
+              <strong>State + street number</strong> — btree on <code>(state, number_first)</code>.
+              Fires when the query has both a state filter and a leading numeric token
+              (e.g. <code>"12 vic"</code> or <code>?state=VIC&amp;q=12+main+st"</code>).
+              Skips full addresses (5+ tokens with a street name) — those need tier 1's
+              per-street-number boost logic instead.
+              <span class="corrector-meta">p50: 0.4ms · p95: 1.7ms · Index: <code>idx_mv_tier0_number_first</code></span>
+            </div>
+          </div>
+          <div class="tier-row">
+            <span class="tier-badge t0b">tier0_locality</span>
+            <div class="tier-desc">
+              <strong>State + locality prefix</strong> — btree on <code>(state, locality_lc text_pattern_ops)</code>.
+              Triggers when the query has a state filter and the last token is alphabetic (≥2 chars)
+              and not a street type. The locality prefix is used as a LIKE filter, not just a boost.
+              E.g. <code>"syd nsw"</code> finds all localities starting with "syd" in NSW.
+              <span class="corrector-meta">p50: 3.0ms · p95: 6.1ms · Index: <code>idx_mv_tier0_state_locality</code></span>
+            </div>
+          </div>
+          <div class="tier-row">
+            <span class="tier-badge t1">tier1</span>
+            <div class="tier-desc">
+              <strong>Street name prefix</strong> — btree on <code>(street_lc text_pattern_ops, confidence_norm DESC)</code>.
+              The primary workhorse tier. Fires when the query has an alphabetic token ≥3 chars
+              that looks like a street name (not a state, flat type, or street type).
+              The street number, flat number, locality, and street type are all used as
+              ORDER BY boosts (not filters) — the most specific boost wins the top slot.
+              <span class="corrector-meta">p50: 13.8ms · p95: 15.8ms · Index: <code>idx_mv_tier1_street_prefix</code></span>
+            </div>
+          </div>
+          <div class="tier-row">
+            <span class="tier-badge t4">tier4</span>
+            <div class="tier-desc">
+              <strong>Multi-word GIN fallback</strong> — GIN trigram on <code>street_lc</code> and
+              <code>locality_lc</code> (individual columns, not the full address string).
+              Rarely fires — the tier1 prefix check was lowered to 1 char (was 3), so even
+              <code>"y st"</code> and <code>"pi st"</code> now hit the fast btree instead.
+              Uses a <code>LIMIT 8000</code> subquery before <code>DISTINCT ON (display)</code>
+              to bound the sort cost.
+              <span class="corrector-meta">p50: ~40ms · p95: ~50ms · Indexes: <code>idx_mv_tier4_street_trgm</code> + <code>idx_mv_tier4_locality_trgm</code></span>
+            </div>
+          </div>
+          <div class="tier-row">
+            <span class="tier-badge t2">tier2</span>
+            <div class="tier-desc">
+              <strong>Single-word trigram fallback</strong> — GIN trigram on <code>search_text_expanded</code>.
+              For single-word queries with no matching street/locality prefix.
+              Most single-word queries are now caught by tier1 (any prefix ≥1 char).
+              <span class="corrector-meta">p50: ~47ms · p95: ~55ms · Index: <code>idx_mv_tier2_trgm</code></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr style="margin:var(--sp-3) 0">
+      <div class="router-col">
+        <strong class="router-col-title">✏️ Typo Corrector <span class="badge-tag">before DB</span></strong>
+          <p class="text-muted" style="font-size:0.85rem">
+            An in-memory corrector rewrites typos <em>before</em> routing, so
+            the DB never sees a misspelt street, suburb, or state:
+          </p>
+          <div class="corrector-paths">
+            <div class="corrector-row">
+              <span class="tier-badge typo">street</span>
+              <div class="corrector-desc">
+                <strong>700K distinct street names</strong> — SymSpell deletion index.
+                For each name, pre-compute all single-character-deletion variants (~10 per name).
+                To correct a query, generate its own deletions and intersect with the index.
+                Matching names are the closest candidates within edit distance 1-2,
+                scored by shared-deletion count with frequency as a tie-breaker.
+                <span class="corrector-meta">
+                  Catches 1-char insertions (<code>"gresfodr" → "gresford"</code>),
+                  deletions (<code>"gresfrod" → "gresford"</code>),
+                  and substitutions (<code>"gresfird" → "gresford"</code>).
+                  Memory: ~200MB. Threshold: ≥4 chars (≤3 is too short for reliable correction).
+                </span>
+              </div>
+            </div>
+            <div class="corrector-row">
+              <span class="tier-badge typo">locality</span>
+              <div class="corrector-desc">
+                <strong>16K distinct locality (suburb) names</strong> — SymSpell deletion index.
+                Same algorithm as the street corrector but a separate dictionary loaded from
+                <code>SELECT locality_lc, COUNT(*) FROM address_search_mv GROUP BY locality_lc</code>.
+                When the tokenizer's <code>localityPrefix</code> is ≥3 chars and not in the
+                dictionary, the corrector finds the closest in-dictionary match.
+                <span class="corrector-meta">
+                  Corrects suburb typos like <code>"wntirna" → "wantirna"</code>.
+                  Threshold is 3 chars (vs 4 for streets) because short locality names like
+                  <code>"syd"</code>/<code>"mel"</code> are common and worth correcting.
+                  Memory: ~10MB (40× smaller than the street dictionary).
+                </span>
+              </div>
+            </div>
+            <div class="corrector-row">
+              <span class="tier-badge typo">state</span>
+              <div class="corrector-desc">
+                <strong>9 AU state/territory codes</strong> — closed-set Levenshtein-1.
+                No dictionary needed — just standard Levenshtein distance against the 9
+                valid codes: <code>ACT, NSW, NT, QLD, SA, TAS, VIC, WA, OT</code>.
+                Conservative: only returns a correction when <strong>exactly one</strong>
+                valid state has distance ≤1 from the input token. This avoids guessing
+                when multiple states are close (e.g. "ns" is at distance 1 from NSW, NT,
+                and SA — all three are rejected).
+                <span class="corrector-meta">
+                  Applies in two places: (1) query-token state detection via
+                  <code>detectStateFilter()</code> — e.g. <code>"sydney nswq"</code>
+                  corrects <code>"nswq" → "NSW"</code>, and (2) the explicit
+                  <code>?state=</code> query param — e.g. <code>?state=nswq</code>
+                  silently corrects and returns <code>state_corrected_from: "nswq"</code>.
+                  Invalid params with no 1-edit candidate get HTTP 400.
+                  Negative examples: <code>"nz" → "NT"</code> (unique, distance 1),
+                  <code>"ns" → rejected</code> (3 candidates), <code>"xyz" → rejected</code>
+                  (no candidate within 1).
+                </span>
+              </div>
+            </div>
+          </div>
+          <p class="text-muted" style="font-size:0.82rem;margin-top:var(--sp-1)">
+            Corrector response fields: <code>corrected_from</code> ·
+            <code>locality_corrected_from</code> ·
+            <code>state_corrected_from</code>
+          </p>
+          <p class="text-muted" style="font-size:0.82rem;margin-top:var(--sp-1)">
+            Startup: ~3s · Memory: ~210MB · No-op if DB is unreachable
+          </p>
+        </div>
+      <strong>Within each tier, results are ranked by:</strong>
+      <div class="code-block" style="font-size:0.82rem;margin-top:var(--sp-1)">
+number_first = X DESC → exact X in display → flat number in display →
+street_type match → display LIKE 'unit %' → confidence DESC → display
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📋 G-NAF Code Reference</h2>
+    <p class="card-lead">
+      All code values found across the 16M-address G-NAF dataset, with their
+      meanings and display mappings. Flat/level/street type codes are the
+      authoritative G-NAF codes — the <code>FLAT_TYPE_LC</code> set in
+      <code>src/search/tokenizer.ts</code> determines which are treated as
+      flat-type prefixes during tokenization.
+    </p>
+
+    <details>
+      <summary><strong>🏢 Flat type codes</strong> — 49 codes, <code>FLAT_TYPE_LC</code> tokenizer set</summary>
+      <div class="table-wrap mt-2">
+        <table class="code-ref-table">
+          <thead>
+            <tr><th>Code</th><th>Display</th><th>Meaning</th><th>Count</th><th>In tokenizer?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>UNIT</td><td>U</td><td>Unit</td><td>4,771,951</td><td class="text-green">✓</td></tr>
+            <tr><td>SHOP</td><td>SH</td><td>Shop</td><td>163,587</td><td class="text-green">✓</td></tr>
+            <tr><td>SE</td><td>STE</td><td>Suite</td><td>62,676</td><td class="text-red">✗</td></tr>
+            <tr><td>APT</td><td>APT</td><td>Apartment</td><td>50,923</td><td class="text-green">✓</td></tr>
+            <tr><td>FLAT</td><td>F</td><td>Flat</td><td>33,566</td><td class="text-green">✓</td></tr>
+            <tr><td>CARS</td><td>CARPARK</td><td>Car Space</td><td>32,778</td><td class="text-green">✓</td></tr>
+            <tr><td>SITE</td><td>SITE</td><td>Site</td><td>22,058</td><td class="text-green">✓</td></tr>
+            <tr><td>VLLA</td><td>VILLA</td><td>Villa</td><td>15,052</td><td class="text-green">✓</td></tr>
+            <tr><td>OFFC</td><td>OFFICE</td><td>Office</td><td>7,825</td><td class="text-green">○</td></tr>
+            <tr><td>TNHS</td><td>TH</td><td>Townhouse</td><td>7,736</td><td class="text-green">✓</td></tr>
+            <tr><td>FCTY</td><td>FACTORY</td><td>Factory</td><td>7,610</td><td class="text-red">✗</td></tr>
+            <tr><td>ROOM</td><td>RM</td><td>Room</td><td>6,905</td><td class="text-green">✓</td></tr>
+            <tr><td>SHED</td><td>SHED</td><td>Shed</td><td>6,650</td><td class="text-red">✗</td></tr>
+            <tr><td>HSE</td><td>HOUSE</td><td>House</td><td>4,175</td><td class="text-green">✓</td></tr>
+            <tr><td>DUPL</td><td>DUPLEX</td><td>Duplex</td><td>2,810</td><td class="text-green">✓</td></tr>
+            <tr><td>KSK</td><td>KIOSK</td><td>Kiosk</td><td>2,715</td><td class="text-red">✗</td></tr>
+            <tr><td>STR</td><td>STRATA</td><td>Strata Unit</td><td>2,583</td><td class="text-red">✗</td></tr>
+            <tr><td>WHSE</td><td>WHSE</td><td>Warehouse</td><td>1,452</td><td class="text-red">✗</td></tr>
+            <tr><td>BTSD</td><td>BOATSHED</td><td>Boat Shed</td><td>1,125</td><td class="text-red">✗</td></tr>
+            <tr><td>CTGE</td><td>CTGE</td><td>Cottage</td><td>1,013</td><td class="text-red">✗</td></tr>
+            <tr><td>CARP</td><td>CARPARK</td><td>Carpark</td><td>952</td><td class="text-red">✗</td></tr>
+            <tr><td>MBTH</td><td>MB</td><td>Mooring Berth</td><td>800</td><td class="text-red">✗</td></tr>
+            <tr><td>STOR</td><td>STORE</td><td>Store</td><td>680</td><td class="text-red">✗</td></tr>
+            <tr><td>GRGE</td><td>GARAGE</td><td>Garage</td><td>493</td><td class="text-red">✗</td></tr>
+            <tr><td>TNCY</td><td>TENANCY</td><td>Tenancy</td><td>463</td><td class="text-red">✗</td></tr>
+            <tr><td>REAR</td><td>REAR</td><td>Rear</td><td>341</td><td class="text-red">✗</td></tr>
+            <tr><td>BLDG</td><td>BLDG</td><td>Building</td><td>287</td><td class="text-green">✓</td></tr>
+            <tr><td>STU</td><td>STUDIO</td><td>Studio</td><td>259</td><td class="text-red">✗</td></tr>
+            <tr><td>LOT</td><td>LOT</td><td>Lot</td><td>258</td><td class="text-green">✓</td></tr>
+            <tr><td>STLL</td><td>STALL</td><td>Stall</td><td>258</td><td class="text-red">✗</td></tr>
+            <tr><td>TWR</td><td>TOWER</td><td>Tower</td><td>225</td><td class="text-red">✗</td></tr>
+            <tr><td>PTHS</td><td>PH</td><td>Penthouse</td><td>174</td><td class="text-green">✓</td></tr>
+            <tr><td>ATM</td><td>ATM</td><td>ATM</td><td>169</td><td class="text-red">✗</td></tr>
+            <tr><td>ANT</td><td>ANTENNA</td><td>Antenna</td><td>54</td><td class="text-red">✗</td></tr>
+            <tr><td>SUBS</td><td>—</td><td>Substation</td><td>46</td><td class="text-red">✗</td></tr>
+            <tr><td>WKSH</td><td>WORKSHOP</td><td>Workshop</td><td>40</td><td class="text-red">✗</td></tr>
+            <tr><td>SIGN</td><td>SIGN</td><td>Sign</td><td>35</td><td class="text-red">✗</td></tr>
+            <tr><td>WARD</td><td>WARD</td><td>Ward</td><td>22</td><td class="text-red">✗</td></tr>
+            <tr><td>SHRM</td><td>SHOWROOM</td><td>Showroom</td><td>21</td><td class="text-red">✗</td></tr>
+            <tr><td>MSNT</td><td>MAISONETTE</td><td>Maisonette</td><td>16</td><td class="text-green">✓</td></tr>
+            <tr><td>SEC</td><td>SEC</td><td>Section</td><td>13</td><td class="text-red">✗</td></tr>
+            <tr><td>VLT</td><td>VAULT</td><td>Vault</td><td>12</td><td class="text-red">✗</td></tr>
+            <tr><td>LOFT</td><td>LOFT</td><td>Loft</td><td>12</td><td class="text-red">✗</td></tr>
+            <tr><td>HALL</td><td>HALL</td><td>Hall</td><td>7</td><td class="text-red">✗</td></tr>
+            <tr><td>BLCK</td><td>BLOCK</td><td>Block</td><td>6</td><td class="text-red">✗</td></tr>
+            <tr><td>LSE</td><td>LEASE</td><td>Lease</td><td>4</td><td class="text-red">✗</td></tr>
+            <tr><td>LBBY</td><td>LOBBY</td><td>Lobby</td><td>1</td><td class="text-red">✗</td></tr>
+            <tr><td>CLUB</td><td>CLUB</td><td>Club</td><td>1</td><td class="text-red">✗</td></tr>
+            <tr><td>CAGE</td><td>—</td><td>Cage</td><td>1</td><td class="text-red">✗</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details>
+      <summary><strong>📶 Level type codes</strong> — 9 codes</summary>
+      <div class="table-wrap mt-2">
+        <table class="code-ref-table">
+          <thead>
+            <tr><th>Code</th><th>Meaning</th><th>Count</th><th>In tokenizer?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>L</td><td>Level (general upper level)</td><td>227,351</td><td class="text-green">✓</td></tr>
+            <tr><td>FL</td><td>Floor</td><td>26,676</td><td class="text-green">✓</td></tr>
+            <tr><td>B</td><td>Basement</td><td>356</td><td class="text-red">✗</td></tr>
+            <tr><td>LG</td><td>Lower Ground</td><td>74</td><td class="text-red">✗</td></tr>
+            <tr><td>M</td><td>Mezzanine</td><td>34</td><td class="text-red">✗</td></tr>
+            <tr><td>P</td><td>Parking</td><td>17</td><td class="text-red">✗</td></tr>
+            <tr><td>LB</td><td>Level B (lower basement)</td><td>13</td><td class="text-red">✗</td></tr>
+            <tr><td>UG</td><td>Upper Ground</td><td>8</td><td class="text-red">✗</td></tr>
+            <tr><td>RT</td><td>Roof Terrace</td><td>5</td><td class="text-red">✗</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details>
+      <summary><strong>🛣️ Street suffix (directional) codes</strong> — 18 codes</summary>
+      <div class="table-wrap mt-2">
+        <table class="code-ref-table">
+          <thead>
+            <tr><th>Code</th><th>Meaning</th><th>Count</th><th>In tokenizer?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>OF</td><td>Off (branch road)</td><td>2,007</td><td class="text-red">✗</td></tr>
+            <tr><td>N</td><td>North</td><td>1,024</td><td class="text-red">✗</td></tr>
+            <tr><td>S</td><td>South</td><td>986</td><td class="text-red">✗</td></tr>
+            <tr><td>W</td><td>West</td><td>980</td><td class="text-red">✗</td></tr>
+            <tr><td>E</td><td>East</td><td>933</td><td class="text-red">✗</td></tr>
+            <tr><td>ON</td><td>On (on-ramp branch)</td><td>646</td><td class="text-red">✗</td></tr>
+            <tr><td>EX</td><td>Extension</td><td>79</td><td class="text-red">✗</td></tr>
+            <tr><td>CN</td><td>Central</td><td>12</td><td class="text-red">✗</td></tr>
+            <tr><td>ML</td><td>Mall</td><td>8</td><td class="text-red">✗</td></tr>
+            <tr><td>LR</td><td>Lower</td><td>8</td><td class="text-red">✗</td></tr>
+            <tr><td>UP</td><td>Upper</td><td>6</td><td class="text-red">✗</td></tr>
+            <tr><td>SE</td><td>Southeast</td><td>4</td><td class="text-red">✗</td></tr>
+            <tr><td>NE</td><td>Northeast</td><td>3</td><td class="text-red">✗</td></tr>
+            <tr><td>DE</td><td>Deviation</td><td>3</td><td class="text-red">✗</td></tr>
+            <tr><td>SW</td><td>Southwest</td><td>2</td><td class="text-red">✗</td></tr>
+            <tr><td>OT</td><td>Other</td><td>1</td><td class="text-red">✗</td></tr>
+            <tr><td>IN</td><td>Inner</td><td>1</td><td class="text-red">✗</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <p class="card-lead mt-3 text-muted" style="font-size:0.82rem">
+      ✓ = in <code>FLAT_TYPE_LC</code> tokenizer set &nbsp;·&nbsp;
+      ○ = in set as lowercase variant &nbsp;·&nbsp;
+      ✗ = not in tokenizer (address won't be parsed as flat-type-prefixed)
+      &nbsp;·&nbsp; <strong>Level types:</strong> <code>L</code> (level) and <code>FL</code> (floor) are tokenized
+      &nbsp;·&nbsp; <strong>Street suffixes:</strong> not tokenized (they are street name parts, not address prefixes)
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Endpoint Reference</h2>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Endpoint</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>GET /suggest?q=...&amp;state=...&amp;postcode=...&amp;limit=...&amp;offset=...</code></td><td>Address autocomplete</td></tr>
+        <tr><td><code>GET /address/:id</code></td><td>Full address details by PID</td></tr>
+        <tr><td><code>GET /healthz</code></td><td>Liveness probe</td></tr>
+        <tr><td><code>GET /readyz</code></td><td>Readiness probe (DB + MV)</td></tr>
+        <tr><td><code>POST /warmup</code></td><td>Warm index cache</td></tr>
+        <tr><td><code>GET /openapi</code></td><td>Scalar API docs</td></tr>
+        <tr><td><code>GET /keys</code></td><td>Generate a domain-bound API key</td></tr>
+        <tr><td><code>GET /api/stats</code></td><td>Public usage statistics</td></tr>
+        <tr><td><code>GET /analytics</code></td><td>Analytics dashboard (public)</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🧪 Test Suite &amp; Fixture</h2>
+    <p class="card-lead">
+      A comprehensive test fixture was built from the raw G-NAF PSV files
+      (<code>scripts/build-fixture.ts</code>) — 10,000 addresses across all 9
+      states/territories, each with ~8 typo variants (80,303 total). The fixture
+      targets 110 edge case categories.
+    </p>
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="num">10K</div>
+        <div class="lbl">fixture addresses</div>
+      </div>
+      <div class="stat">
+        <div class="num">80K</div>
+        <div class="lbl">typo variants</div>
+      </div>
+      <div class="stat">
+        <div class="num">110</div>
+        <div class="lbl">edge-case categories</div>
+      </div>
+      <div class="stat">
+        <div class="num">9</div>
+        <div class="lbl">states covered</div>
+      </div>
+      <div class="stat">
+        <div class="num">509</div>
+        <div class="lbl">fixture-driven tests</div>
+      </div>
+      <div class="stat">
+        <div class="num">0</div>
+        <div class="lbl">test failures</div>
+      </div>
+    </div>
+    <div class="table-wrap mt-3">
+      <table>
+        <thead>
+          <tr><th>Category</th><th>Count</th><th>Examples</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>flat/unit</code></td><td>5,981</td><td>Unit 1, Apt 5, Shop 4, Suite 7</td></tr>
+          <tr><td><code>lot_number</code></td><td>1,721</td><td>Lot 1, Lot 2 (rural addresses)</td></tr>
+          <tr><td><code>number_range</code></td><td>616</td><td>6-14, 100-110, 20-30</td></tr>
+          <tr><td><code>number_suffix</code></td><td>659</td><td>1A, 2B, 3/4</td></tr>
+          <tr><td><code>building_name</code></td><td>385</td><td>Collins Tower, Rialto</td></tr>
+          <tr><td><code>alias</code></td><td>432</td><td>Principal + alias addresses</td></tr>
+          <tr><td><code>level/floor</code></td><td>197</td><td>Level 6, Level B, Level G</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="card-lead mt-3">
+      <strong>Typo variant categories</strong> — each address includes ~8 variants
+      covering exact, short, street-name typo, street-type typo, locality typo,
+      state-code typo, postcode-only, flat/level prefix, and off-by-one flat
+      number errors. The fixture is at <code>tests/fixtures/addresses.json</code>
+      (17 MB) and the test runner is at <code>tests/fixture/autocomplete.test.ts</code>
+      (509 tests, 31K expect calls, 0 failures).
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>📖 Why This Project Exists</h2>
+    <p>
+      Geoscape Australia publishes <strong>G-NAF</strong> — the authoritative list of
+      every address in Australia — as a free download. It's a 16-million-row dataset
+      updated quarterly. Building a fast autocomplete service on top of it is harder
+      than it looks.
+    </p>
+    <div class="tldr">
+      <strong>The problem.</strong> The official G-NAF reference schema
+      (<code>create_tables_ansi.sql</code> + <code>address_view.sql</code>) is designed
+      for offline analytical use — 30+ normalized tables, a 12-table JOIN view, and no
+      indexes. A query like <code>"1090 centre rd oakleigh south vic 3167"</code> would
+      take <strong>seconds</strong> because the database has to re-evaluate the entire
+      16M-row view every time, with no typo tolerance, no abbreviation matching, and no
+      autocomplete-specific shortcuts.
+    </div>
+    <div class="tldr">
+      <strong>Most address-lookup services cost money.</strong> Google Places,
+      Mapbox Search, SmartyStreets, Loqate, what3words — all charge per-request or
+      per-month once you exceed the free tier. A mid-traffic Australian site can rack
+      up hundreds to thousands of dollars a month. This project exists because G-NAF
+      is <strong>free public data</strong> (CC BY 4.0) and deserves a free,
+      self-hostable, production-quality front-end. You pay for the Postgres box;
+      you don't pay per keystroke.
+    </div>
+    <p>
+      <strong>Our solution.</strong> A self-contained service that loads G-NAF, builds
+      a single optimized materialized view, and routes every query to the cheapest
+      index — typically in <strong>under 5&nbsp;ms</strong>. The trade-off is
+      deliberately narrow: we don't try to be a general-purpose G-NAF database, just
+      the fastest possible address-look-up endpoint.
+    </p>
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="num">16M+</div>
+        <div class="lbl">Australian addresses</div>
+      </div>
+      <div class="stat">
+        <div class="num">&lt;5 ms</div>
+        <div class="lbl">typical p95 latency</div>
+      </div>
+      <div class="stat">
+        <div class="num">7</div>
+        <div class="lbl">query routing tiers</div>
+      </div>
+      <div class="stat">
+        <div class="num">$0</div>
+        <div class="lbl">per-request cost</div>
+      </div>
+      <div class="stat">
+        <div class="num">100%</div>
+        <div class="lbl">self-contained docker</div>
+      </div>
+      <div class="stat">
+        <div class="num">CC BY 4.0</div>
+        <div class="lbl">G-NAF attribution</div>
+      </div>
+    </div>
+    <p class="card-lead mt-3">
+      <strong>Who it's for.</strong> Front-end developers who need a fast, reliable
+      address autocomplete widget backed by official Australian data. Drop the API URL
+      into your form, get sub-50ms responses, and ship. <br>
+      <strong>What it's not.</strong> A general-purpose G-NAF database, an offline
+      geocoder, or a replacement for Google Places. If you need mesh-block joins,
+      batch geocoding, or address validation, use the original G-NAF schema
+      directly — see the comparison below.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>⚖️ Schema Design: Original G-NAF vs This Project</h2>
+    <p class="card-lead">
+      The official G-NAF distribution ships SQL scripts to build a full normalized
+      database (<code>create_tables_ansi.sql</code>, ~333 lines) and a flat view
+      (<code>address_view.sql</code>, 74 lines). Our approach replaces those with a
+      5-table staging layer plus a single optimized materialized view. Both are valid;
+      they serve different goals.
+    </p>
+    <div class="compare-grid">
+      <div class="compare-col original">
+        <h3 style="font-size:var(--fs-lg)">🟡 Original G-NAF</h3>
+        <p class="desc">
+          <em>General-purpose normalized database</em><br>
+          30+ tables · 638 lines of SQL · plain VIEW · no indexes on read target
+        </p>
+        <div class="pc-section-label pros">PROS</div>
+        <ul class="pros-cons pro">
+          <li>Complete schema — covers mesh blocks, aliases, address sites, audit fields</li>
+          <li>Proper normalization (3NF, PKs, FKs, lookup tables)</li>
+          <li>Generic — answers any address question (counts, geocoding, joins)</li>
+          <li>Portable ANSI SQL — works on any RDBMS</li>
+          <li>No dependency on application code</li>
+          <li>Always-fresh data (it's a VIEW, not a snapshot)</li>
+        </ul>
+        <div class="pc-section-label cons">CONS</div>
+        <ul class="pros-cons con">
+          <li>No indexes on the read target — each query re-evaluates the view</li>
+          <li>12-table JOIN runs at query time, every time</li>
+          <li>No display formatting — clients assemble the address string themselves</li>
+          <li>No typo tolerance — "sydne" finds nothing</li>
+          <li>No abbreviation matching — "ST" and "STREET" don't cross-match</li>
+          <li>Filter is minimal (excludes <code>CONFIDENCE = -1</code> only)</li>
+          <li>Typical query time: <strong>seconds</strong></li>
+        </ul>
+      </div>
+      <div class="compare-col ours">
+        <h3 style="font-size:var(--fs-lg)">🟢 This Project</h3>
+        <p class="desc">
+          <em>Single-purpose autocomplete service</em><br>
+          5 staging tables + 1 materialized VIEW · 10 indexes · in-process LRU cache
+        </p>
+        <div class="pc-section-label pros">PROS</div>
+        <ul class="pros-cons pro">
+          <li>Sub-50ms p95 — measured 31.9ms p95 across 1000 mixed queries (cold cache)</li>
+          <li>Pre-computed <code>display</code> string — no runtime formatting</li>
+          <li>Pre-computed <code>search_text_expanded</code> with abbreviation expansion</li>
+          <li>10 indexes picked for specific query shapes (state+postcode, number+state, locality+state, street prefix, trigram, FTS, street/locality GIN)</li>
+          <li>Smart 7-tier router — picks the cheapest index per query</li>
+          <li>Typo-tolerant (GIN trigram, similarity threshold)</li>
+          <li>"MAIN ST" matches "MAIN STREET" automatically</li>
+          <li>Aggressive filter — excludes retired + alias addresses</li>
+          <li>In-process LRU cache — repeated queries return in &lt;1ms</li>
+          <li>In-memory Street+Locality+State corrector (SymSpell + Levenshtein-1, ~210MB, ~3s startup)</li>
+        </ul>
+        <div class="pc-section-label cons">CONS</div>
+        <ul class="pros-cons con">
+          <li>Single-purpose — can't answer mesh-block or alias questions</li>
+          <li>Audit fields dropped (<code>date_created</code>, <code>legal_parcel_id</code>, …)</li>
+          <li>No lookup tables — type names are hardcoded abbreviations in the MV DDL</li>
+          <li>Postgres-specific (<code>pg_trgm</code>, GIN, MV, custom <code>postgresql.conf</code>)</li>
+          <li>Materialized view is stale between refreshes (typically weekly)</li>
+          <li>Refresh cost: ~10 min for 16M rows on first load</li>
+          <li>Returns raw codes (<code>U</code>, not <code>UNIT</code>) — client maps them</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="sub-h">📊 Side-by-Side at a Glance</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Aspect</th><th class="text-yellow">Original G-NAF</th><th class="text-green">This Project</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>SQL lines</td><td class="text-yellow">638</td><td class="text-green">~430</td></tr>
+          <tr><td>Tables</td><td class="text-yellow">30+ normalized</td><td class="text-green">5 staging + 1 MV</td></tr>
+          <tr><td>Read target</td><td class="text-yellow">plain VIEW (re-evaluated)</td><td class="text-green">MATERIALIZED VIEW (cached)</td></tr>
+          <tr><td>Joins per query</td><td class="text-yellow">12 at runtime</td><td class="text-green">0 (pre-joined)</td></tr>
+          <tr><td>Indexes on read target</td><td class="text-yellow">none</td><td class="text-green">10 (btree + GIN trigram + GIN FTS + GIN street/locality)</td></tr>
+          <tr><td>Display formatting</td><td class="text-yellow">client-side</td><td class="text-green">pre-computed column</td></tr>
+          <tr><td>Typo tolerance</td><td class="text-yellow">no</td><td class="text-green">yes (trigram)</td></tr>
+          <tr><td>Abbrev matching</td><td class="text-yellow">no</td><td class="text-green">yes (expand_address_abbrevs)</td></tr>
+          <tr><td>Typical p95</td><td class="text-yellow">seconds</td><td class="text-green">31.9 ms (cold cache)</td></tr>
+          <tr><td>Cache layer</td><td class="text-yellow">none</td><td class="text-green">in-process LRU</td></tr>
+          <tr><td>Data freshness</td><td class="text-yellow">always live</td><td class="text-green">snapshot, refresh weekly</td></tr>
+          <tr><td>Portability</td><td class="text-yellow">any RDBMS</td><td class="text-green">Postgres only</td></tr>
+          <tr><td>Reusability</td><td class="text-yellow">any G-NAF question</td><td class="text-green">autocomplete only</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tldr mt-3">
+      <strong>When to use which.</strong> Need sub-50ms autocomplete at scale, with
+      typos and abbreviations handled? Use this. Need mesh-block joins, ad-hoc
+      analytics, audit history, or a portable schema? Use the original G-NAF scripts.
+      <br><br>
+      <strong>Best of both worlds.</strong> The two are not mutually exclusive. The
+      original schema can be the source of truth (auditable, complete), and our
+      materialized view can be a denormalized projection refreshed on top of it —
+      you get full auditability <em>and</em> sub-50ms reads.
+    </div>
+  </div>

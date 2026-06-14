@@ -1,0 +1,832 @@
+<style>
+.stat-grid-6 { grid-template-columns: repeat(6, 1fr); }
+.stat-grid-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 800px) { .stat-grid-6 { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 500px) { .stat-grid-6 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px) { .stat-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+</style>
+<div class="card">
+    <h2>📦 G‑NAF Loader Pipeline</h2>
+    <p class="card-lead">
+        Every G‑NAF release (quarterly: Feb · May · Aug · Nov) must be loaded
+        from raw PSV files into PostgreSQL. The loader at
+        <code>scripts/load.ts</code> orchestrates 9 parallel workers (one per AU
+        state/territory) through a 7‑phase pipeline. Total time for 16M
+        addresses: <strong>~9.5 min (570s)</strong> on a
+        <code>MacBook Pro M5 Pro (48GB)</code> ·
+        <code>macOS 26.5.1</code> · <code>Bun 1.3.14</code> ·
+        <code>Postgres 18-bookworm (Docker)</code> · 16GB container limit.
+        Uses <code>COPY FROM STDIN</code> streaming via the
+        <code>postgres</code> package (peak memory ~900MB).
+    </p>
+    <div class="stat-grid stat-grid-6">
+        <div class="stat">
+            <div class="num">16M</div>
+            <div class="lbl">addresses loaded</div>
+        </div>
+        <div class="stat">
+            <div class="num">9.5</div>
+            <div class="lbl">minutes total</div>
+        </div>
+        <div class="stat">
+            <div class="num">9</div>
+            <div class="lbl">parallel workers</div>
+        </div>
+        <div class="stat">
+            <div class="num">5</div>
+            <div class="lbl">staging tables</div>
+        </div>
+        <div class="stat">
+            <div class="num">121s</div>
+            <div class="lbl">denormalization</div>
+        </div>
+        <div class="stat">
+            <div class="num">143s</div>
+            <div class="lbl">MV REFRESH</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>⏱️ Phase Breakdown</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 70px">Phase</th>
+                    <th>What happens</th>
+                    <th style="width: 70px">Time</th>
+                    <th style="width: 40px">%</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="text-blue"><strong>1</strong></td>
+                    <td>
+                        <strong>Schema init + extensions</strong><br />
+                        <span class="text-muted" style="font-size: 0.82rem">
+                            8 SQL files run via
+                            <code>docker-entrypoint-initdb.d</code>: extensions
+                            (<code>pg_trgm</code>, <code>unaccent</code>), 5
+                            UNLOGGED staging tables, abbreviation map, expansion
+                            function, MV definition (WITH NO DATA). The 9
+                            staging indexes are dropped for load speedup.
+                        </span>
+                    </td>
+                    <td class="text-mono">~1s</td>
+                    <td class="text-mono">&lt;1%</td>
+                </tr>
+                <tr>
+                    <td class="text-green"><strong>2</strong></td>
+                    <td>
+                        <strong>Workers — 9 parallel COPY streams</strong><br />
+                        <span class="text-muted" style="font-size: 0.82rem">
+                            One <code>Bun.spawn("load-worker.ts")</code> per
+                            state/territory. Each worker reads 5 PSV files via
+                            streaming reader
+                            (<code>Bun.file().stream().getReader()</code>) and
+                            pipes through <code>COPY FROM STDIN</code> (TSV
+                            format). Smallest states finish first (OT: 5K, ACT:
+                            283K, NT: 119K), largest finish last (NSW: 5.2M,
+                            VIC: 4.4M, QLD: 3.6M). <code>UNLOGGED</code> tables
+                            skip WAL logging, 3× faster COPY.
+                        </span>
+                        <div class="tier-rows mt-2">
+                            <div
+                                class="tier-row"
+                                style="margin-bottom: 0; padding: 4px 0"
+                            >
+                                <span
+                                    class="tier-badge"
+                                    style="
+                                        background: rgba(133, 153, 0, 0.12);
+                                        color: var(--green);
+                                    "
+                                    style="min-width: 4em"
+                                    >NSW</span
+                                >
+                                <span
+                                    class="tier-desc"
+                                    style="font-size: 0.82rem"
+                                    >5,206,855 rows · address: 120s · geocode:
+                                    54s</span
+                                >
+                            </div>
+                            <div
+                                class="tier-row"
+                                style="margin-bottom: 0; padding: 4px 0"
+                            >
+                                <span
+                                    class="tier-badge"
+                                    style="
+                                        background: rgba(181, 137, 0, 0.12);
+                                        color: var(--yellow);
+                                    "
+                                    style="min-width: 4em"
+                                    >VIC</span
+                                >
+                                <span
+                                    class="tier-desc"
+                                    style="font-size: 0.82rem"
+                                    >4,394,828 rows · address: 114s · geocode:
+                                    51s</span
+                                >
+                            </div>
+                            <div
+                                class="tier-row"
+                                style="margin-bottom: 0; padding: 4px 0"
+                            >
+                                <span
+                                    class="tier-badge"
+                                    style="
+                                        background: rgba(108, 113, 196, 0.12);
+                                        color: var(--violet);
+                                    "
+                                    style="min-width: 4em"
+                                    >QLD</span
+                                >
+                                <span
+                                    class="tier-desc"
+                                    style="font-size: 0.82rem"
+                                    >3,566,078 rows · address: 90s · geocode:
+                                    32s</span
+                                >
+                            </div>
+                            <div
+                                class="tier-row"
+                                style="margin-bottom: 0; padding: 4px 0"
+                            >
+                                <span
+                                    class="tier-badge"
+                                    style="
+                                        background: rgba(203, 75, 22, 0.12);
+                                        color: var(--orange);
+                                    "
+                                    style="min-width: 4em"
+                                    >WA</span
+                                >
+                                <span
+                                    class="tier-desc"
+                                    style="font-size: 0.82rem"
+                                    >1,673,144 rows · address: 39s · geocode:
+                                    47s</span
+                                >
+                            </div>
+                            <div
+                                class="tier-row"
+                                style="margin-bottom: 0; padding: 4px 0"
+                            >
+                                <span
+                                    class="tier-badge"
+                                    style="
+                                        background: rgba(220, 50, 47, 0.1);
+                                        color: var(--red);
+                                    "
+                                    style="min-width: 4em"
+                                    >SA</span
+                                >
+                                <span
+                                    class="tier-desc"
+                                    style="font-size: 0.82rem"
+                                    >1,282,166 rows · address: 30s · geocode:
+                                    38s</span
+                                >
+                            </div>
+                            <div
+                                class="tier-row"
+                                style="margin-bottom: 0; padding: 4px 0"
+                            >
+                                <span class="tier-badge" style="min-width: 4em"
+                                    >TAS</span
+                                >
+                                <span
+                                    class="tier-desc"
+                                    style="font-size: 0.82rem"
+                                    >375,613 rows · address: 11s · geocode:
+                                    10s</span
+                                >
+                            </div>
+                            <div
+                                class="tier-row"
+                                style="margin-bottom: 0; padding: 4px 0"
+                            >
+                                <span class="tier-badge" style="min-width: 4em"
+                                    >ACT</span
+                                >
+                                <span
+                                    class="tier-desc"
+                                    style="font-size: 0.82rem"
+                                    >282,553 rows · address: 11s · geocode:
+                                    8s</span
+                                >
+                            </div>
+                            <div
+                                class="tier-row"
+                                style="margin-bottom: 0; padding: 4px 0"
+                            >
+                                <span class="tier-badge" style="min-width: 4em"
+                                    >NT</span
+                                >
+                                <span
+                                    class="tier-desc"
+                                    style="font-size: 0.82rem"
+                                    >119,401 rows · address: 4s · geocode:
+                                    3s</span
+                                >
+                            </div>
+                            <div
+                                class="tier-row"
+                                style="
+                                    margin-bottom: 0;
+                                    padding: 4px 0;
+                                    border-bottom: none;
+                                "
+                            >
+                                <span class="tier-badge" style="min-width: 4em"
+                                    >OT</span
+                                >
+                                <span
+                                    class="tier-desc"
+                                    style="font-size: 0.82rem"
+                                    >5,186 rows · address: 0.3s · geocode:
+                                    0.1s</span
+                                >
+                            </div>
+                        </div>
+                    </td>
+                            <td class="text-mono">177s</td>
+                            <td class="text-mono">31%</td>
+                </tr>
+                <tr>
+                    <td class="text-green"><strong>3</strong></td>
+                    <td>
+                        <strong>Denormalization UPDATE</strong><br />
+                        <span class="text-muted" style="font-size: 0.82rem">
+                            A single 4‑table JOIN UPDATE on
+                            <code>staging_address_detail</code>:
+                            <code>sl.street_name</code>,
+                            <code>loc.locality_name</code>,
+                            <code>st.state_abbreviation</code> →
+                            <code>_dn</code> columns. Runs <em>after</em> all
+                            workers complete so the JOIN sees every row. 16M
+                            rows updated, 100% coverage. The MV reads these
+                            pre-computed columns directly instead of JOINing 4
+                            tables during REFRESH.
+                        </span>
+                        <span
+                            class="corrector-meta"
+                            style="margin-top: var(--sp-1); display: block"
+                        >
+                            <code
+                                >UPDATE ad SET street_name_dn = sl.street_name,
+                                … FROM staging_street_locality sl JOIN
+                                staging_locality loc … JOIN staging_state st …
+                                WHERE ad.street_locality_pid =
+                                sl.street_locality_pid</code
+                            >
+                        </span>
+                    </td>
+                            <td class="text-mono">121s</td>
+                            <td class="text-mono">21%</td>
+                </tr>
+                <tr>
+                    <td class="text-yellow"><strong>4</strong></td>
+                    <td>
+                        <strong>Pre‑filter + staging maintenance</strong><br />
+                        <span class="text-muted" style="font-size: 0.82rem">
+                            Recreate staging indexes (dropped before the load).
+                            Prewarm staging tables via <code>pg_prewarm</code>.
+                            Then DELETE retired (<code
+                                >date_retired IS NOT NULL</code
+                            >) and alias (<code
+                                >alias_principal = &#39;A&#39;</code
+                            >) rows from both
+                            <code>staging_address_detail</code> and its geocode
+                            FK before REFRESH. Reduces MV row count ~5‑10% and
+                            removes the per‑row WHERE clause from the REFRESH
+                            query.
+                        </span>
+                    </td>
+                            <td class="text-mono">19s</td>
+                            <td class="text-mono">3%</td>
+                </tr>
+                <tr>
+                    <td class="text-red"><strong>5</strong></td>
+                    <td>
+                        <strong>MV REFRESH</strong><br />
+                        <span class="text-muted" style="font-size: 0.82rem">
+                            <code
+                                >REFRESH MATERIALIZED VIEW
+                                address_search_mv</code
+                            >
+                            — the single most expensive operation. Drops all 8
+                            indexes before REFRESH to avoid maintaining them
+                            during the 16M‑row INSERT. The MV SELECT uses a
+                            <code>LATERAL JOIN</code> for
+                            <code>search_text_expanded</code> (abbreviation
+                            expansion via
+                            <code>expand_address_abbrevs()</code>), pre‑computed
+                            display formatting (<code>COALESCE</code> chain for
+                            flat/level/number/ street/locality/state/postcode),
+                            and type‑mapped confidence normalization (<code
+                                >NULL→0.5, -1→0.3, 0‑6→(c+1)/7</code
+                            >).
+                        </span>
+                    </td>
+                            <td class="text-mono">143s</td>
+                            <td class="text-mono">25%</td>
+                </tr>
+                <tr>
+                    <td class="text-cyan"><strong>6</strong></td>
+                    <td>
+                        <strong>MV indexes (parallel build)</strong><br />
+                        <span class="text-muted" style="font-size: 0.82rem">
+                            Recreate all 8 MV indexes in parallel using 6
+                            database connections. 4 btree (covering: tier0
+                            state+postcode, tier0 state+number, tier0
+                            state+locality, tier1 street+prefix) and 2 GIN
+                            trigram (tier2/tier4,
+                            <code>fastupdate=off</code> for 20‑30% faster
+                            reads). The GIN trigram at ~2.5GB is the largest.
+                            Parallel builds via 6 conns complete in 99s vs
+                            ~200s serial.
+                        </span>
+                        <span
+                            class="corrector-meta"
+                            style="margin-top: var(--sp-1); display: block"
+                        >
+                            <code>idx_mv_tier0_state_postcode</code> ·
+                            <code>idx_mv_tier0_number_first</code> ·
+                            <code>idx_mv_tier0_state_locality</code> ·
+                            <code>idx_mv_tier1_street_prefix</code> ·
+                            <code>idx_mv_tier2_trgm</code> ·
+                            <code>idx_mv_tier3_fts</code> ·
+                            <code>idx_mv_postcode_prefix</code> ·
+                            <code>idx_mv_address_detail_pid</code>
+                        </span>
+                    </td>
+                            <td class="text-mono">99s</td>
+                            <td class="text-mono">17%</td>
+                </tr>
+                <tr>
+                    <td class="text-green"><strong>7</strong></td>
+                    <td>
+                        <strong>Prewarm + cleanup</strong><br />
+                        <span class="text-muted" style="font-size: 0.82rem">
+                            <code>pg_prewarm</code> the 6 most‑used MV indexes
+                            into <code>shared_buffers</code>. Skips the GIN FTS
+                            index (no query tier uses it). Re‑enable autovacuum
+                            on all 5 staging tables (disabled during load to
+                            avoid memory contention).
+                        </span>
+                    </td>
+                            <td class="text-mono">13s</td>
+                            <td class="text-mono">2%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📐 Architecture</h2>
+    <p class="card-lead">
+        The loader runs as a single orchestrator process that spawns 9 parallel
+        worker processes, then runs sequential post-processing steps on the
+        database. All data flows from PSV files → staging tables → materialized view.
+    </p>
+    <div class="tier-rows">
+        <div class="tier-row" style="border-bottom-color: var(--blue)">
+            <span class="tier-badge pc">Step 1</span>
+            <div class="tier-desc">
+                <strong>Orchestrator</strong> (<code>scripts/load.ts</code>) —&nbsp;
+                drops staging indexes, disables autovacuum, spawns 9 worker
+                processes, then waits for all to complete.
+            </div>
+        </div>
+        <div class="tier-row" style="border-bottom-color: var(--green)">
+            <span class="tier-badge t0">Step 2</span>
+            <div class="tier-desc">
+                <strong>9 workers</strong> (<code>Bun.spawn("load-worker.ts")</code>) —&nbsp;
+                one per state, each reads 5 PSV files and pipes them into
+                <code>COPY FROM STDIN</code> on 5 staging tables
+                (<code>staging_state</code>, <code>staging_locality</code>,
+                <code>staging_street_locality</code>, <code>staging_address_detail</code>,
+                <code>staging_address_geocode</code>).
+            </div>
+        </div>
+        <div class="tier-row" style="border-bottom-color: var(--yellow)">
+            <span class="tier-badge t0c">Step 3</span>
+            <div class="tier-desc">
+                <strong>Post‑worker</strong> — denormalization UPDATE, staging
+                index recreation, <code>pg_prewarm</code>, pre‑filter DELETE of
+                retired/alias rows.
+            </div>
+        </div>
+        <div class="tier-row" style="border-bottom-color: var(--red)">
+            <span class="tier-badge t1">Step 4</span>
+            <div class="tier-desc">
+                <strong>MV REFRESH</strong> — drops indexes, runs
+                <code>REFRESH MATERIALIZED VIEW</code>, then recreates 10 indexes
+                in parallel (6 connections). <code>pg_prewarm</code> indexes,
+                re‑enable autovacuum.
+            </div>
+        </div>
+        <div class="tier-row" style="border-bottom: none">
+            <span class="tier-badge t4">Step 5</span>
+            <div class="tier-desc">
+                <strong>Done</strong> — <code>address_search_mv</code> is
+                populated with 16M rows and all 8 indexes are hot in
+                <code>shared_buffers</code>. The API is ready to serve queries.
+            </div>
+        </div>
+    </div>
+
+<div class="card">
+    <h2>⏲️ Per‑State Worker Timings</h2>
+    <p class="card-lead">
+        All 9 workers run in parallel via <code>Promise.all(Bun.spawn())</code>.
+        Total worker phase wall‑clock: ~177s. Each worker loads 5 PSV files
+        sequentially per state: state → locality → street_locality →
+        address_detail → address_geocode. Dominated by the 3 largest states
+        (NSW, VIC, QLD).
+    </p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>State</th>
+                    <th style="text-align: right">Addresses</th>
+                    <th style="text-align: right">Address detail</th>
+                    <th style="text-align: right">Geocode</th>
+                    <th style="text-align: right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>NSW</strong></td>
+                    <td style="text-align: right">5,206,855</td>
+                    <td style="text-align: right">119.6s</td>
+                    <td style="text-align: right">53.6s</td>
+                    <td style="text-align: right"><strong>173.2s</strong></td>
+                </tr>
+                <tr>
+                    <td><strong>VIC</strong></td>
+                    <td style="text-align: right">4,394,828</td>
+                    <td style="text-align: right">113.7s</td>
+                    <td style="text-align: right">51.3s</td>
+                    <td style="text-align: right"><strong>165.0s</strong></td>
+                </tr>
+                <tr>
+                    <td><strong>QLD</strong></td>
+                    <td style="text-align: right">3,566,078</td>
+                    <td style="text-align: right">89.6s</td>
+                    <td style="text-align: right">31.7s</td>
+                    <td style="text-align: right"><strong>121.3s</strong></td>
+                </tr>
+                <tr>
+                    <td>WA</td>
+                    <td style="text-align: right">1,673,144</td>
+                    <td style="text-align: right">38.7s</td>
+                    <td style="text-align: right">47.2s</td>
+                    <td style="text-align: right"><strong>85.9s</strong></td>
+                </tr>
+                <tr>
+                    <td>SA</td>
+                    <td style="text-align: right">1,282,166</td>
+                    <td style="text-align: right">29.7s</td>
+                    <td style="text-align: right">37.8s</td>
+                    <td style="text-align: right"><strong>67.5s</strong></td>
+                </tr>
+                <tr>
+                    <td>TAS</td>
+                    <td style="text-align: right">375,613</td>
+                    <td style="text-align: right">10.7s</td>
+                    <td style="text-align: right">9.5s</td>
+                    <td style="text-align: right"><strong>20.2s</strong></td>
+                </tr>
+                <tr>
+                    <td>ACT</td>
+                    <td style="text-align: right">282,553</td>
+                    <td style="text-align: right">10.5s</td>
+                    <td style="text-align: right">7.5s</td>
+                    <td style="text-align: right"><strong>18.0s</strong></td>
+                </tr>
+                <tr>
+                    <td>NT</td>
+                    <td style="text-align: right">119,401</td>
+                    <td style="text-align: right">3.6s</td>
+                    <td style="text-align: right">2.8s</td>
+                    <td style="text-align: right"><strong>6.4s</strong></td>
+                </tr>
+                <tr>
+                    <td>OT</td>
+                    <td style="text-align: right">5,186</td>
+                    <td style="text-align: right">0.3s</td>
+                    <td style="text-align: right">0.1s</td>
+                    <td style="text-align: right"><strong>0.4s</strong></td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr
+                    style="
+                        font-weight: 600;
+                        border-top: 2px solid var(--border);
+                        background: var(--surface-2);
+                    "
+                >
+                    <td>Total</td>
+                    <td style="text-align: right">16,905,824</td>
+                    <td style="text-align: right">—</td>
+                    <td style="text-align: right">—</td>
+                    <td style="text-align: right">~180s wall</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h2>💾 Memory &amp; Disk</h2>
+    <p class="card-lead">
+        The loader is designed to keep peak container memory under 1GB during
+        the COPY phase. <code>COPY FROM STDIN</code> (via the
+        <code>postgres</code>
+        package) streams data directly from file to heap without buffering in
+        <code>shared_buffers</code> — peak ~900MB for 9 concurrent workers. The
+        MV and its indexes occupy ~27.5GB of disk after the load.
+    </p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Phase</th>
+                    <th style="text-align: right">Container memory</th>
+                    <th style="text-align: right">Host free RAM needed</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Idling (before load)</td>
+                    <td style="text-align: right">~70 MB</td>
+                    <td style="text-align: right">~16 GB</td>
+                </tr>
+                <tr>
+                    <td>Parallel COPY (9 workers)</td>
+                    <td style="text-align: right">~900 MB</td>
+                    <td style="text-align: right">~15 GB</td>
+                </tr>
+                <tr>
+                    <td>Denormalization UPDATE</td>
+                    <td style="text-align: right">~900 MB</td>
+                    <td style="text-align: right">~15 GB</td>
+                </tr>
+                <tr>
+                    <td>MV REFRESH</td>
+                    <td style="text-align: right">~900 MB</td>
+                    <td style="text-align: right">~15 GB</td>
+                </tr>
+                <tr>
+                    <td>MV index recreation (parallel)</td>
+                    <td style="text-align: right">~900 MB</td>
+                    <td style="text-align: right">~15 GB</td>
+                </tr>
+                <tr>
+                    <td>Steady state (post-load)</td>
+                    <td style="text-align: right">~15 GB</td>
+                    <td style="text-align: right">~16 GB host</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="stat-grid stat-grid-4 mt-3">
+        <div class="stat">
+            <div class="num" style="font-size: var(--fs-lg)">~20 GB</div>
+            <div class="lbl">disk (MV + indexes)</div>
+        </div>
+        <div class="stat">
+            <div class="num" style="font-size: var(--fs-lg)">~12.5 GB</div>
+            <div class="lbl">indexes on MV</div>
+        </div>
+        <div class="stat">
+            <div class="num" style="font-size: var(--fs-lg)">~900 MB</div>
+            <div class="lbl">peak COPY memory</div>
+        </div>
+        <div class="stat">
+            <div class="num" style="font-size: var(--fs-lg)">16 GB</div>
+            <div class="lbl">Docker memory limit</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>🗃️ Staging Row Counts</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Table</th>
+                    <th style="text-align: right">Rows</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>staging_state</code></td>
+                    <td style="text-align: right">9</td>
+                    <td>ACT, NSW, NT, OT, QLD, SA, TAS, VIC, WA</td>
+                </tr>
+                <tr>
+                    <td><code>staging_locality</code></td>
+                    <td style="text-align: right">17,578</td>
+                    <td>Suburbs, towns, localities</td>
+                </tr>
+                <tr>
+                    <td><code>staging_street_locality</code></td>
+                    <td style="text-align: right">765,407</td>
+                    <td>Street names per locality</td>
+                </tr>
+                <tr>
+                    <td><code>staging_address_detail</code></td>
+                    <td style="text-align: right">16,025,964</td>
+                    <td>
+                        Core address table (post-DELETE of 880K retired/alias)
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>staging_address_geocode</code></td>
+                    <td style="text-align: right">16,025,964</td>
+                    <td>Lat/lon, 1:1 with address_detail</td>
+                </tr>
+                <tr
+                    style="
+                        font-weight: 600;
+                        border-top: 2px solid var(--border);
+                        background: var(--surface-2);
+                    "
+                >
+                    <td><code>address_search_mv</code></td>
+                    <td style="text-align: right">16,025,964</td>
+                    <td>Single read target, ~15GB + ~12.5GB indexes</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h2>⚙️ Key Optimizations</h2>
+    <p class="card-lead">
+        Eight design decisions that make the loader fast. These are
+        independent of the pipeline order — each optimization targets a
+        specific bottleneck (memory, WAL, index maintenance, cache warmup).
+    </p>
+    <div class="tier-rows">
+        <div class="tier-row" style="border-bottom-color: var(--green)">
+            <span class="tier-badge t0" style="min-width:5em">COPY</span>
+            <div class="tier-desc">
+                <strong>COPY FROM STDIN</strong> — streams data directly to the
+                PostgreSQL heap without building JS-side parameter arrays or
+                dirtying <code>shared_buffers</code>. 200‑500K rows/sec per
+                connection. Reduces peak memory 10‑25× vs bulk INSERT.
+            </div>
+        </div>
+        <div class="tier-row" style="border-bottom-color: var(--green)">
+            <span class="tier-badge t0c" style="min-width:5em">UNLOGGED</span>
+            <div class="tier-desc">
+                <strong>UNLOGGED staging tables</strong> — skip WAL generation
+                during the load. Makes COPY 3× faster. Data is destroyed on
+                crash, but since we always re‑load from PSV files, that is
+                acceptable.
+            </div>
+        </div>
+        <div class="tier-row" style="border-bottom-color: var(--green)">
+            <span class="tier-badge t0b" style="min-width:5em">Parallel</span>
+            <div class="tier-desc">
+                <strong>9 parallel workers</strong> — one <code>Bun.spawn</code>
+                per state. Each loads its own file, no cross‑worker state. The
+                orchestrator waits for all 9 via
+                <code>Promise.all(proc.exited)</code>.
+            </div>
+        </div>
+        <div class="tier-row" style="border-bottom-color: var(--green)">
+            <span class="tier-badge t1" style="min-width:5em">Denorm</span>
+            <div class="tier-desc">
+                <strong>Orchestrator‑level denormalization</strong> — a single
+                4‑table JOIN UPDATE after all workers finish. Populates
+                <code>_dn</code> columns (street name, locality, state) so the
+                MV REFRESH can read them directly instead of JOINing 4 tables.
+            </div>
+        </div>
+        <div class="tier-row" style="border-bottom-color: var(--green)">
+            <span class="tier-badge t2" style="min-width:5em">Pre‑filter</span>
+            <div class="tier-desc">
+                <strong>Pre‑filter retired/alias rows</strong> — DELETE from
+                staging before REFRESH reduces MV row count ~5‑10% and
+                eliminates the per‑row WHERE clause during REFRESH. Also deletes
+                matching geocode rows to satisfy FK constraint.
+            </div>
+        </div>
+        <div class="tier-row" style="border-bottom-color: var(--green)">
+            <span class="tier-badge t4" style="min-width:5em">Drop idx</span>
+            <div class="tier-desc">
+                <strong>Drop MV indexes before REFRESH</strong> — the 8 indexes
+                would otherwise be maintained during the 16M‑row INSERT.
+                Dropping first lets REFRESH just write sequentially, then
+                indexes are recreated in parallel (6 connections) for 2× faster
+                index build vs serial.
+            </div>
+        </div>
+        <div class="tier-row" style="border-bottom-color: var(--green)">
+            <span class="tier-badge pc" style="min-width:5em">GIN</span>
+            <div class="tier-desc">
+                <strong>GIN trigram with <code>fastupdate=off</code></strong> —
+                the GIN index on <code>search_text_expanded</code> uses the
+                pending list by default. Disabling it improves Tier2/Tier4 query
+                latency 20‑30% at the cost of slightly slower index builds.
+            </div>
+        </div>
+        <div class="tier-row" style="border-bottom-color: var(--green)">
+            <span class="tier-badge typo" style="min-width:5em">Prewarm</span>
+            <div class="tier-desc">
+                <strong>Post‑load <code>pg_prewarm</code></strong> — loads the 6
+                most‑used MV indexes into <code>shared_buffers</code> so the
+                first user query does not hit cold disk reads. Skips the GIN FTS
+                index (no query tier uses it).
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📋 Quarterly Refresh Checklist</h2>
+    <div class="tldr">
+        <strong>G‑NAF is published ~4×/year</strong> (Feb, May, Aug, Nov). Each
+        refresh requires a full reload — the staging tables are TRUNCATE&#39;d
+        and re‑populated from the new PSV files.
+    </div>
+    <div class="code-block" style="font-size: 0.82rem; line-height: 1.7">
+        # 1. Download the new G‑NAF release from data.gov.au # 2. Update
+        GNAF_DATA_DIR to point at new PSV files export
+        GNAF_DATA_DIR=/path/to/G‑NAF\ MAY\ 2026/Standard # 3. Reset the DB
+        (deletes all data) docker compose down -v && docker compose up -d db #
+        4. Run the loader (~10 min for 16M rows) docker compose run --rm api bun
+        run scripts/load.ts # 5. Restart the API docker compose restart api # 6.
+        Warm the cache curl -X POST http://localhost:8000/warmup # 7. Verify bun
+        run benchmark/bench.ts
+    </div>
+</div>
+
+<div class="card">
+    <h2>📊 Benchmark</h2>
+    <p class="card-lead">
+        Full workload benchmark: 1000 mixed queries (31 distinct shapes) against
+        the freshly‑loaded API. Results reflect <strong>cold‑cache</strong>
+        latency (<code>&amp;no_cache=1</code>). Repeated queries are &lt;1ms
+        with the in‑process LRU.
+    </p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th style="text-align: right">Warm cache</th>
+                    <th style="text-align: right">Cold cache</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>p50</td>
+                    <td style="text-align: right">6.2ms</td>
+                    <td style="text-align: right">57.3ms</td>
+                </tr>
+                <tr>
+                    <td>p95</td>
+                    <td style="text-align: right">44.3ms</td>
+                    <td style="text-align: right">76.5ms</td>
+                </tr>
+                <tr>
+                    <td>p99</td>
+                    <td style="text-align: right">52.1ms</td>
+                    <td style="text-align: right">94.6ms</td>
+                </tr>
+                <tr>
+                    <td>avg</td>
+                    <td style="text-align: right">13.9ms</td>
+                    <td style="text-align: right">60.7ms</td>
+                </tr>
+                <tr>
+                    <td>max</td>
+                    <td style="text-align: right">477.8ms</td>
+                    <td style="text-align: right">364.3ms</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="card-lead mt-3">
+        <strong>Target:</strong> p95 &lt;50ms with warm cache.
+        <strong>Status:</strong> 🟡 Cold cache p95 76.5ms (first 20‑30 queries
+        after fresh load). Run <code>bun run benchmark/bench.ts</code> to
+        reproduce.
+    </p>
+</div>

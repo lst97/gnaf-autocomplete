@@ -1,0 +1,313 @@
+<h2>📖 Getting Started Guide</h2>
+
+<div class="card">
+  <h3>🔐 API Key Authentication</h3>
+  <p class="card-lead">
+    All data endpoints (<code>/suggest</code>, <code>/address/:id</code>) require a valid API key.
+    Keys are <strong>domain-bound</strong> — the <code>Referer</code> and <code>Origin</code> headers of each
+    browser request must match the registered domain (or a subdomain of it).
+  </p>
+
+  <div class="callout" style="background:var(--surface-2);border-left:3px solid var(--green);padding:8px 12px;margin-bottom:12px;font-size:var(--fs-sm)">
+    <strong>✅ Recommended pattern: backend proxy.</strong> Store your API key on your own
+    <em>server</em> and proxy requests to G-NAF. The key never reaches the browser, so it
+    can't be stolen from your users. This is how Stripe, Twilio, and Google Maps all
+    recommend using API keys.
+  </div>
+
+  <h4 style="margin-top:16px">1. Generate a Key</h4>
+  <ol style="margin-left:20px;margin-bottom:12px">
+    <li>Open the <strong>🔑 API Keys</strong> tab</li>
+    <li>Enter your domain (e.g., <code>myapp.com</code>) — <code>www.</code> prefix is stripped automatically</li>
+    <li>Complete the Cloudflare Turnstile challenge</li>
+    <li>Click <strong>Generate</strong></li>
+  </ol>
+  <div class="callout" style="background:var(--surface-2);border-left:3px solid var(--red);padding:8px 12px;font-size:var(--fs-sm)">
+    <strong>⛔ Blocked TLDs:</strong> Certain high-spam TLDs are blocked from key registration:
+    <code>.tk .ml .ga .cf .gq .top .xyz .vip .club .bond .cam .ink .life .media .wang .quest .host</code>.
+    Configurable via the <code>DOMAIN_SPAM_TLDS</code> env var.
+  </div>
+
+  <h4>2. Verify Domain Ownership</h4>
+  <p style="margin-bottom:8px">
+    Keys start in <strong>pending</strong> status. To activate, add a DNS TXT record:
+  </p>
+  <div class="code-block" style="font-size:var(--fs-xs)">
+    <div>Type: TXT</div>
+    <div>Name: @ (or your domain)</div>
+    <div>Value: gnaf-verify=<span style="color:var(--cyan)">&lt;verification_token&gt;</span></div>
+  </div>
+  <p style="margin-top:8px;margin-bottom:8px">
+    After adding the record, click <strong>Verify Now</strong> in the API Keys tab.
+    DNS propagation typically takes 1–5 minutes. The key status changes to <strong>active</strong>
+    once verified.
+  </p>
+  <div class="callout" style="background:var(--surface-2);border-left:3px solid var(--orange);padding:8px 12px;margin-bottom:8px;font-size:var(--fs-sm)">
+    <strong>⚠ Important:</strong> Remove the TXT record from your DNS after verification completes.
+    Key management uses a <strong>separate</strong> record (<code>gnaf-mgmt</code>), so leaving
+    <code>gnaf-verify</code> in place does <em>not</em> expose management — but it's still
+    good practice to clean up.
+  </div>
+
+  <h4>3. Store the Key Safely</h4>
+  <p style="font-size:var(--fs-sm);margin-bottom:8px">
+    <strong>Never commit the key to git</strong> and never embed it in client-side JavaScript.
+    The key is a secret — treat it like a database password.
+  </p>
+  <div class="table-wrap" style="margin-top:8px">
+  <table>
+    <thead>
+      <tr><th>Context</th><th>Storage</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Node.js / Bun server</td><td>Environment variable (<code>process.env.GNAF_API_KEY</code>)</td></tr>
+      <tr><td>Python / Django / Flask</td><td>Environment variable (<code>os.environ["GNAF_API_KEY"]</code>)</td></tr>
+      <tr><td>Docker / docker-compose</td><td>Pass via env_file, never bake into image</td></tr>
+      <tr><td>Cloudflare Workers</td><td>Secret (wrangler secret put GNAF_API_KEY)</td></tr>
+      <tr><td>Vercel / Netlify</td><td>Project environment variables (serverless only)</td></tr>
+      <tr><td>AWS Lambda</td><td>AWS Secrets Manager / Parameter Store</td></tr>
+      <tr><td>Production</td><td>Dedicated secret manager (Vault, AWS SM, GCP SM)</td></tr>
+      <tr style="color:var(--red)"><td>❌ Frontend JS / HTML</td><td>Never — visible to all your users</td></tr>
+      <tr style="color:var(--red)"><td>❌ Public Git repo</td><td>Never — scraped within minutes</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4 style="margin-top:16px">4. Use the Key (Backend Proxy Pattern)</h4>
+  <p style="font-size:var(--fs-sm);margin-bottom:8px">
+    The frontend calls your backend, your backend calls G-NAF. The key never leaves the server.
+  </p>
+
+  <div class="code-block" style="font-size:var(--fs-xs)">
+    <div style="color:var(--muted)"># Node.js / Bun</div>
+    <div>app.get("/api/suggest", async (req, res) =&gt; {</div>
+    <div>  const r = await fetch(</div>
+    <div>    `https://api.yourservice.com/suggest?q=${encodeURIComponent(req.query.q)}`,</div>
+    <div>    { headers: { "X-API-Key": process.env.GNAF_API_KEY } }</div>
+    <div>  );</div>
+    <div>  res.json(await r.json());</div>
+    <div>});</div>
+    <div></div>
+    <div style="color:var(--muted)"># Python / Flask</div>
+    <div>@app.get("/api/suggest")</div>
+    <div>def suggest():</div>
+    <div>    r = requests.get(</div>
+    <div>        "https://api.yourservice.com/suggest",</div>
+    <div>        params={"q": request.args["q"]},</div>
+    <div>        headers={"X-API-Key": os.environ["GNAF_API_KEY"]},</div>
+    <div>    )</div>
+    <div>    return r.json()</div>
+    <div></div>
+    <div style="color:var(--muted)"># Cloudflare Worker</div>
+    <div>export default {</div>
+    <div>  async fetch(req, env) {</div>
+    <div>    const url = new URL(req.url);</div>
+    <div>    const apiUrl = `https://api.yourservice.com${url.pathname}${url.search}`;</div>
+    <div>    return fetch(apiUrl, {</div>
+    <div>      headers: { "X-API-Key": env.GNAF_API_KEY },</div>
+    <div>    });</div>
+    <div>  },</div>
+    <div>};</div>
+    <div></div>
+    <div style="color:var(--muted)"># cURL (server-side testing only)</div>
+    <div>curl "https://api.yourservice.com/suggest?q=sydney" \</div>
+    <div>  -H "X-API-Key: gnaf_pk_xxx..."</div>
+  </div>
+
+  <h4 style="margin-top:16px">⚠️ What About Browser-Side Use?</h4>
+  <p style="font-size:var(--fs-sm);margin-bottom:8px">
+    You <em>can</em> call the API directly from browser JavaScript by sending the
+    <code>X-API-Key</code> header. It works because the server checks
+    <code>Referer</code> and <code>Origin</code> against your registered domain.
+    But this is <strong>not recommended</strong> for production:
+  </p>
+  <ul style="font-size:var(--fs-sm);margin-left:20px;margin-bottom:12px">
+    <li>Anyone with browser dev tools can read the key from the network tab</li>
+    <li>The key ends up in browser caches, history, and error reports (Sentry, etc.)</li>
+    <li>The <code>Referer</code>/<code>Origin</code> check is a soft defense — it's spoofable from <code>curl</code> and any non-browser client</li>
+    <li>If the key leaks, you can revoke it, but until then anyone can use it from anywhere</li>
+  </ul>
+  <p style="font-size:var(--fs-sm);margin-bottom:8px">
+    <strong>Only use browser-side for prototypes and demos</strong> — never for production
+    apps that handle real user data.
+  </p>
+
+  <h4 style="margin-top:16px">Key Validation Rules</h4>
+  <div class="table-wrap" style="margin-top:8px">
+  <table>
+    <thead>
+      <tr><th>Scenario</th><th>Result</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Valid key + Referer/Origin matches domain</td><td style="color:var(--green)">✅ 200 OK</td></tr>
+      <tr><td>Valid key + no Referer/Origin (server-side / curl)</td><td style="color:var(--yellow)">✅ 200 OK (no browser check needed)</td></tr>
+      <tr><td>Valid key + Referer/Origin doesn't match</td><td style="color:var(--red)">❌ 403 DOMAIN_MISMATCH</td></tr>
+      <tr><td>Revoked key</td><td style="color:var(--red)">❌ 403 KEY_REVOKED</td></tr>
+      <tr><td>Pending key (not yet verified)</td><td style="color:var(--red)">❌ 403 KEY_PENDING</td></tr>
+      <tr><td>No key provided</td><td style="color:var(--red)">❌ 401 MISSING_API_KEY</td></tr>
+      <tr><td>Key exceeds hourly budget</td><td style="color:var(--red)">❌ 429 KEY_RATE_LIMITED</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4 style="margin-top:16px">Rate Limits</h4>
+  <div class="table-wrap" style="margin-top:8px">
+  <table>
+    <thead>
+      <tr><th>Limit</th><th>Scope</th><th>Default</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Per-key hourly</td><td>Each API key</td><td>5,000 req/hr</td></tr>
+      <tr><td>Per IP global</td><td>All requests from one IP</td><td>120 req/min</td></tr>
+      <tr><td>Key generation</td><td>Per IP</td><td>10 req/hr</td></tr>
+      <tr><td>Domain verification checks</td><td>Per IP</td><td>20 req/min</td></tr></tbody>
+  </table>
+  </div>
+</div>
+
+<div class="card" style="border-left:3px solid var(--orange)">
+  <h3>⚠️ Key Management — Security</h3>
+  <p class="card-lead">
+    The API Keys tab has two ways to manage your keys:
+  </p>
+
+  <h4 style="margin-top:12px">🔑 Method 1: Using an existing API key</h4>
+  <p style="font-size:var(--fs-sm);margin-bottom:6px">
+    If you have an active API key, enter your domain and paste the full key, then click <strong>Manage</strong>.
+    The server verifies the key belongs to your domain and shows all keys with revoke buttons.
+    <em>No DNS needed.</em>
+  </p>
+
+  <h4 style="margin-top:12px">🔐 Method 2: DNS Recovery (lost all keys)</h4>
+  <p style="font-size:var(--fs-sm);margin-bottom:6px">
+    Lost all your keys? Prove domain ownership via a <strong>separate</strong> DNS TXT record:
+  </p>
+  <ol style="margin-left:20px;margin-bottom:6px;font-size:var(--fs-sm)">
+    <li>Enter your domain and click <strong>Start Recovery</strong></li>
+    <li>Add <code>gnaf-mgmt=&lt;token&gt;</code> to your DNS (this is different from <code>gnaf-verify</code> used for key activation)</li>
+    <li>Click <strong>Verify DNS &amp; List Keys</strong></li>
+  </ol>
+
+  <div class="callout" style="background:var(--surface-2);border-left:3px solid var(--red);padding:8px 12px;margin-bottom:4px;font-size:var(--fs-sm)">
+    <strong>⚠ Critical:</strong> Anyone who can add a DNS TXT record for your domain can list and
+    revoke <em>all</em> API keys. After you finish managing keys via DNS recovery, <strong>immediately remove</strong>
+    the <code>gnaf-mgmt</code> TXT record from your DNS. Do not leave it active — it is a backdoor to your keys.
+    The recovery session expires after 5 minutes, but the DNS record persists until you delete it.
+  </div>
+</div>
+
+<div class="card">
+  <h3>📍 Using the Autocomplete</h3>
+  <p class="card-lead">
+    The <code>/suggest</code> endpoint accepts partial Australian addresses and returns
+    ranked matches. Results include G-NAF persistent IDs, formatted display strings,
+    coordinates (GDA2020), and relevance scores.
+  </p>
+
+  <h4 style="margin-top:16px">Query Parameters</h4>
+  <div class="table-wrap" style="margin-top:8px">
+  <table>
+    <thead>
+      <tr><th>Param</th><th>Required</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td style="font-family:var(--mono)">q</td><td>✅</td><td>Search query (min 2 chars, max 200)</td></tr>
+      <tr><td style="font-family:var(--mono)">state</td><td>❌</td><td>Filter: ACT, NSW, NT, OT, QLD, SA, TAS, VIC, WA</td></tr>
+      <tr><td style="font-family:var(--mono)">postcode</td><td>❌</td><td>Filter: exactly 4 digits</td></tr>
+      <tr><td style="font-family:var(--mono)">limit</td><td>❌</td><td>Max results (default 10, max 50)</td></tr>
+      <tr><td style="font-family:var(--mono)">offset</td><td>❌</td><td>Pagination offset (max 1000)</td></tr>
+      <tr><td style="font-family:var(--mono)">key</td><td>✅</td><td>Your API key (or <code>X-API-Key</code> header)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4 style="margin-top:16px">Examples</h4>
+  <div class="code-block" style="font-size:var(--fs-xs);margin-top:8px">
+    <div># Simple street search</div>
+    <div>curl "https://api.yourservice.com/suggest?q=12+main+st+sydney" \</div>
+    <div>  -H "Referer: https://myapp.com"</div>
+    <div></div>
+    <div># State-filtered</div>
+    <div>curl "https://api.yourservice.com/suggest?q=centre+rd&amp;state=VIC" \</div>
+    <div>  -H "Referer: https://myapp.com"</div>
+    <div></div>
+    <div># Paginated (page 2)</div>
+    <div>curl "https://api.yourservice.com/suggest?q=sydney&amp;limit=10&amp;offset=10" \</div>
+    <div>  -H "Referer: https://myapp.com"</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>🧠 How It Works</h3>
+  <div class="code-block" style="font-size:var(--fs-xs);margin-bottom:8px">
+    <div>Browser → Cloudflare Edge (DDoS + WAF) → cloudflared tunnel → Bun/Elysia → PostgreSQL</div>
+  </div>
+  <p style="font-size:var(--fs-sm);color:var(--muted)">
+    See the <strong>⚙️ System</strong> tab for full details on the 7-tier query router,
+    in-memory typo corrector, and G-NAF schema design.
+  </p>
+</div>
+
+<div class="card">
+  <h3>⚙️ Configuration</h3>
+
+  <h4 style="margin-top:12px">Environment Variables</h4>
+  <div class="table-wrap" style="margin-top:8px">
+  <table>
+    <thead>
+      <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">PORT</td><td>8000</td><td>API server port</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">DATABASE_URL</td><td>postgresql://...</td><td>PostgreSQL connection string</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">CORS_ORIGINS</td><td>*</td><td>Allowed CORS origins (comma-separated)</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">TURNSTILE_SITE_KEY</td><td>(empty)</td><td>Cloudflare Turnstile site key</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">TURNSTILE_SECRET_KEY</td><td>(empty)</td><td>Cloudflare Turnstile secret key</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">API_KEY_RATE_LIMIT</td><td>5,000</td><td>Max requests per hour per key</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">MAX_KEYS_PER_DOMAIN</td><td>5</td><td>Max active + pending keys per domain</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">CF_TUNNEL_TOKEN</td><td>(empty)</td><td>Cloudflare Tunnel token (production)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4 style="margin-top:16px">Cloudflare Tunnel Deployment</h4>
+  <div class="code-block" style="font-size:var(--fs-xs);margin-top:8px">
+    <div># Install cloudflared and authenticate</div>
+    <div>cloudflared tunnel login</div>
+    <div></div>
+    <div># Create a tunnel</div>
+    <div>cloudflared tunnel create gnaf-api</div>
+    <div></div>
+    <div># Route DNS</div>
+    <div>cloudflared tunnel route dns gnaf-api api.yourdomain.com</div>
+    <div></div>
+    <div># Run with Docker Compose</div>
+    <div>docker compose --profile production up -d tunnel</div>
+  </div>
+
+  <h4 style="margin-top:16px">Data Refresh</h4>
+  <p style="font-size:var(--fs-sm);margin-bottom:8px">
+    G-NAF is published quarterly (Feb, May, Aug, Nov). Update by running the loader
+    with the new data:
+  </p>
+  <div class="code-block" style="font-size:var(--fs-xs)">
+    <div>docker compose run --rm -e GNAF_DATA_DIR=/path/to/new/data api bun run scripts/load.ts</div>
+    <div>docker compose restart api</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>✅ Health Checks</h3>
+  <div class="code-block" style="font-size:var(--fs-xs);margin-top:8px">
+    <div># Liveness (process is running)</div>
+    <div>curl https://api.yourservice.com/healthz</div>
+    <div># → {"status":"ok"}</div>
+    <div></div>
+    <div># Readiness (DB + data loaded)</div>
+    <div>curl https://api.yourservice.com/readyz</div>
+    <div># → {"status":"ready","db":"connected","mv_populated":true,"mv_rows":16025964}</div>
+    <div></div>
+    <div># Warm index cache (after deploy)</div>
+    <div>curl -X POST https://api.yourservice.com/warmup</div>
+  </div>
+</div>

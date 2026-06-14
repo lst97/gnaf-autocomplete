@@ -1,0 +1,91 @@
+  <div class="card">
+    <h2>🔍 Live Autocomplete</h2>
+    <p class="card-lead">
+      Start typing — results appear as you type. Click a result to look up its full details.
+    </p>
+    <div class="ac-wrap">
+      <input class="ac-input" id="acInput" type="search" placeholder="Type an Australian address… e.g. 12 main st sydney" autofocus spellcheck="false">
+      <div class="ac-dropdown" id="acDropdown"></div>
+    </div>
+    <div id="suggestMeta" class="meta-line">Results appear here as you type.</div>
+    <div class="table-wrap"><table id="suggestTable"><thead>
+      <tr><th>ID</th><th>Display</th><th>Suburb</th><th>State</th><th>Postcode</th><th>Score</th><th>Lat</th><th>Lon</th></tr>
+    </thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>🔧 Advanced Search</h2>
+    <div class="row">
+      <div class="field field-grow">
+        <label for="sq">Query (min 2 chars)</label>
+        <input id="sq" placeholder="e.g. 12 main st sydney" value="sydne">
+      </div>
+      <div class="field">
+        <label for="sstate">State</label>
+        <select id="sstate"><option value="">Any</option>
+          <option>ACT</option><option>NSW</option><option>NT</option>
+          <option>OT</option><option>QLD</option><option>SA</option>
+          <option>TAS</option><option selected>VIC</option><option>WA</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="spc">Postcode</label>
+        <input id="spc" placeholder="e.g. 2000" value="">
+      </div>
+      <div class="field">
+        <label for="slim">Limit</label>
+        <input id="slim" type="number" value="15" min="1" max="50">
+      </div>
+      <div class="field">
+        <label for="soff">Offset</label>
+        <input id="soff" type="number" value="0" min="0" max="1000">
+      </div>
+      <button id="suggestBtn" class="btn">Search</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Quick Examples by Tier</h2>
+    <p class="card-lead">
+      Each button was verified against the API — the label matches the actual
+      <code>tier</code> field returned in the response.
+    </p>
+    <div class="tier-group">
+      <button class="btn btn-sm btn-tier tier-0" data-q="sydney nsw 2000" data-state="">tier0</button>
+      <button class="btn btn-sm btn-tier tier-0" data-q="melbourne vic 3000" data-state="">tier0</button>
+      <button class="btn btn-sm btn-tier tier-cache" data-q="2000" data-state="">postcode</button>
+      <button class="btn btn-sm btn-tier tier-cache" data-q="3000" data-state="">postcode</button>
+      <button class="btn btn-sm btn-tier tier-0c" data-q="12 vic" data-state="">tier0c</button>
+      <button class="btn btn-sm btn-tier tier-0c" data-q="100 nsw" data-state="">tier0c</button>
+    </div>
+    <div class="tier-group">
+      <button class="btn btn-sm btn-tier tier-1" data-q="sydne" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="main st" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="george st" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="queen st" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="syd nsw" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="mel vic" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="collins st melbourne" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="12 main st sydney" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-typo" data-q="gresfodr" data-state="">typo_corrected</button>
+      <button class="btn btn-sm btn-tier tier-typo" data-q="gresfrod" data-state="">typo_corrected</button>
+      <button class="btn btn-sm btn-tier tier-typo" data-q="31 gresfodr" data-state="">typo_corrected</button>
+      <button class="btn btn-sm btn-tier tier-typo" data-q="sydneey" data-state="">typo_corrected</button>
+      <button class="btn btn-sm btn-tier tier-typo" data-q="melbourn" data-state="">typo_corrected</button>
+      <button class="btn btn-sm btn-tier tier-typo" data-q="31 main st wntirna" data-state="">typo (locality)</button>
+      <button class="btn btn-sm btn-tier tier-typo" data-q="sydney nswq" data-state="">typo (state)</button>
+    </div>
+    <div class="tier-group">
+      <button class="btn btn-sm btn-tier tier-1" data-q="6 fortuna st clayton vic" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="1090 centre rd oakleigh south vic 3167" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="unit 1 6 fortuna street" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="shop 64/322 coventry st south melbourne vic 3205" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="level 4/68 clarke st southbank vic 3006" data-state="">tier1</button>
+      <button class="btn btn-sm btn-tier tier-1" data-q="5/158 moray st new farm qld 4005" data-state="">tier1</button>
+    </div>
+    <div class="tier-group">
+      <button class="btn btn-sm btn-tier tier-2" data-q="ab" data-state="">tier2</button>
+      <button class="btn btn-sm btn-tier tier-2" data-q="xy" data-state="">tier2</button>
+      <button class="btn btn-sm btn-tier tier-2" data-q="ab cd sydney" data-state="">tier4</button>
+    </div>
+  </div>
