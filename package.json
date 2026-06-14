@@ -1,0 +1,32 @@
+{
+  "name": "gnaf-autocomplete",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "load": "bun run scripts/load.ts",
+    "test": "bun test",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "benchmark": "bun run benchmark/bench.ts",
+    "lint": "biome check src/",
+    "format": "biome format --write src/"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.4.2",
+    "@elysiajs/openapi": "^1.4.15",
+    "elysia": "^1.4.28",
+    "elysia-rate-limit": "^4.6.2",
+    "pino": "^10.3.1",
+    "postgres": "^3.4.5",
+    "zod": "^4.4.3"
+  }
+}
