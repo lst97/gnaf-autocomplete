@@ -1,0 +1,98 @@
+services:
+  db:
+    image: postgres:18-bookworm
+    shm_size: '2GB'                    # Required for REFRESH MATERIALIZED VIEW with
+                                      # maintenance_work_mem=2GB. Default Docker
+                                      # shm (64MB) causes "No space left on device".
+    environment:
+      POSTGRES_DB: gnaf
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # C locale is REQUIRED for text_pattern_ops index performance.
+      # The Tier 0b and Tier 1 indexes use text_pattern_ops for prefix
+      # matching. Without C locale, they fall back to ICU/UTF-8 which
+      # adds 10-20% overhead per index comparison.
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "5433:5432"
+    volumes:
+      # Postgres 18+ requires the mount at /var/lib/postgresql (not /data).
+      # The image creates a major-version-specific subdirectory automatically.
+      - pgdata:/var/lib/postgresql
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+      # Mount individual SQL files (NOT 005_prewarm.sql — that runs after the
+      # loader via scripts/load.ts, since the MV must have data first)
+      - ./sql/001_extensions.sql:/docker-entrypoint-initdb.d/001_extensions.sql
+      - ./sql/003b_abbrev_map.sql:/docker-entrypoint-initdb.d/003b_abbrev_map.sql
+      - ./sql/003c_expand_fn.sql:/docker-entrypoint-initdb.d/003c_expand_fn.sql
+      - ./sql/005_staging.sql:/docker-entrypoint-initdb.d/005_staging.sql
+      - ./sql/006_staging_indexes.sql:/docker-entrypoint-initdb.d/006_staging_indexes.sql
+      - ./sql/007_mv.sql:/docker-entrypoint-initdb.d/007_mv.sql
+      - ./sql/008_api_keys.sql:/docker-entrypoint-initdb.d/008_api_keys.sql
+      - ./sql/009_domain_verify.sql:/docker-entrypoint-initdb.d/009_domain_verify.sql
+      - ./sql/010_last_verified.sql:/docker-entrypoint-initdb.d/010_last_verified.sql
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gnaf"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 20G
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/gnaf
+      LOG_LEVEL: info
+      # NODE_ENV=production enables 120/min rate limiting.
+      # Omit for local dev to keep it disabled.
+      # NODE_ENV: production
+      # SUGGEST_CACHE_MAX=1000         # Max entries in suggest LRU cache
+      # SUGGEST_CACHE_TTL_MS=30000     # TTL for cached entries (ms)
+      PUBLIC_URL: ${PUBLIC_URL:-}     # Same-origin domain mismatch bypass
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
+    depends_on:
+      - api
+    restart: unless-stopped
+    profiles:
+      - production
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - debug
+
+volumes:
+  pgdata:
