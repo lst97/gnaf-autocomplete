@@ -1,0 +1,61 @@
+# dependencies
+node_modules
+**/node_modules
+
+# build artifacts
+out
+dist
+*.tgz
+*.tsbuildinfo
+
+# tests
+tests
+**/*.test.ts
+**/*.spec.ts
+coverage
+*.lcov
+
+# benchmarks
+benchmark
+
+# logs
+logs
+*.log
+
+# caches
+.eslintcache
+.cache
+.bun
+
+# IDE
+.idea
+.vscode
+
+# OS
+.DS_Store
+Thumbs.db
+
+# git
+.git
+.gitignore
+.github
+
+# docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# docs (not needed in image)
+*.md
+README.md
+
+# env files
+.env
+.env.*
+!.env.example
+
+# sql data (loaded via volume, not bundled)
+sql/data
+
+# tmp
+tmp
