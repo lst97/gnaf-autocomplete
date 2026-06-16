@@ -120,7 +120,6 @@ function formatOptionalNum(val: number | null | undefined): string {
 }
 
 export function buildDisplay(c: AddressComponents): string {
-  // Prefix parts (building, lot, flat, level) — joined with ", " if multiple
   const prefixParts: string[] = [];
 
   if (c.buildingName) prefixParts.push(c.buildingName);
@@ -166,10 +165,8 @@ export function buildDisplay(c: AddressComponents): string {
     }
   }
 
-  // Locality line
   const localityLine = `${c.localityName} ${c.stateAbbreviation} ${c.postcode}`;
 
-  // Assemble: [prefix1, prefix2, ...] + streetLine + localityLine
   const allParts = [...prefixParts];
   if (streetLine) allParts.push(streetLine);
   allParts.push(localityLine);

@@ -12,7 +12,50 @@ function sanitizeQuery(q: string): string {
   return q.replace(/[^a-zA-Z0-9\s\-',./]/g, "").trim();
 }
 
-// Rolling timing stats
+/** Validate that a query looks like a plausible Australian address search.
+ *  Rejects queries that cannot possibly match an address before they reach
+ *  the tokenizer/DB. Rules:
+ *   1. Pure 4-digit postcode ("2000") or bare range ("12-56") → always valid
+ *   2. Must have at least one letter
+ *   3. No 3+ consecutive digit-only tokens ("12 34 56 test")
+ *   4. Minimum 2 meaningful characters (letters/digits, not just symbols)
+ *   5. Must NOT be a pure state code ("nsw", "vic") — those return 0 results
+ *      via trigram and are useless for autocomplete. State-only queries take
+ *      500+ms if routed to a full state scan.
+ */
+const VALID_STATE_CODES = new Set(["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA", "OT"]);
+function isValidAddressQuery(q: string): boolean {
+  if (q.length === 0) return false;
+
+  // 1. Pure 4-digit postcode or bare range is always valid
+  if (/^\d{4}$/.test(q.trim())) return true;
+  if (/^\d+-\d+$/.test(q.trim())) return true;
+
+  // 2. Must have at least one letter
+  if (!/[a-zA-Z]/.test(q)) return false;
+
+  // 3. Pure state code is not useful for autocomplete
+  if (VALID_STATE_CODES.has(q.trim().toUpperCase())) return false;
+
+  // 4. No 3+ consecutive digit-only tokens
+  const tokens = q.split(/\s+/);
+  let consecutiveDigitTokens = 0;
+  for (const token of tokens) {
+    if (/^\d+$/.test(token)) {
+      consecutiveDigitTokens++;
+      if (consecutiveDigitTokens >= 3) return false;
+    } else {
+      consecutiveDigitTokens = 0;
+    }
+  }
+
+  // 5. Minimum meaningful content
+  const meaningful = q.replace(/[^a-zA-Z0-9]/g, "").length;
+  if (meaningful < 2) return false;
+
+  return true;
+}
+
 const timingWindow: number[] = [];
 const TIMING_LOG_INTERVAL = 100;
 
@@ -30,7 +73,15 @@ export const suggestRoute = new Elysia().get(
       offset: offsetStr,
       no_cache,
     } = query;
-    const q = sanitizeQuery(rawQ);
+    const rawQSanitized = sanitizeQuery(rawQ);
+    if (!isValidAddressQuery(rawQSanitized)) {
+      throw new AppError(
+        `Invalid query: "${rawQ}". Address queries must contain a street name, locality, or postcode.`,
+        400,
+        ERROR_CODES.VALIDATION_ERROR,
+      );
+    }
+    const q = rawQSanitized;
     const limit = Math.min(Math.max(parseInt(limitStr ?? "10", 10) || 10, 1), 50);
     const offset = Math.min(Math.max(parseInt(offsetStr ?? "0", 10) || 0, 0), 1000);
     const bypassCache = no_cache === "1" || no_cache === "true";
@@ -57,7 +108,6 @@ export const suggestRoute = new Elysia().get(
       }
     }
 
-    // Check cache (only for first-page results, never for pagination)
     if (!bypassCache && offset === 0) {
       const cacheKey = buildSuggestKey(q, state ?? null, postcode ?? null, limit);
       const cached = cache.get(cacheKey);
@@ -65,7 +115,7 @@ export const suggestRoute = new Elysia().get(
         return {
           results: cached.results,
           tier: cached.tier,
-          took_ms: cached.took_ms,
+          took_ms: Math.round(performance.now() - start),
           cache_status: "hit" as const,
           corrected_from: cached.corrected_from,
           locality_corrected_from: cached.locality_corrected_from,
@@ -85,7 +135,6 @@ export const suggestRoute = new Elysia().get(
       "suggest",
     );
 
-    // Rolling timing stats
     timingWindow.push(tookMs);
     if (timingWindow.length >= TIMING_LOG_INTERVAL) {
       const sorted = [...timingWindow].sort((a, b) => a - b);
@@ -120,7 +169,6 @@ export const suggestRoute = new Elysia().get(
     // Also surface param-based state correction (set in the handler, not the router)
     if (stateCorrectedFrom) body.state_corrected_from = stateCorrectedFrom;
 
-    // Populate cache (only for first-page, never when bypass is requested)
     if (!bypassCache && offset === 0) {
       const cacheKey = buildSuggestKey(q, state ?? null, postcode ?? null, limit);
       cache.set(cacheKey, { ...body, cached_at: Date.now() } as CachedSuggestResponse);
@@ -198,7 +246,10 @@ export const suggestRoute = new Elysia().get(
           postcode: t.String({ description: "Australian postcode (4 digits).", example: "2000" }),
           score: t.Number({
             description:
-              "Relevance score: similarity × (1 + ln(confidence + 1)). Higher = more relevant.",
+              "Relevance score: similarity × (1 + ln(confidenceNorm + 1)). " +
+              "similarity (0-1) is trigram text match (1.0 for btree tiers). " +
+              "confidenceNorm normalises G-NAF CONFIDENCE (6→1.0, 0→0.14, NULL→0.5). " +
+              "Range: 0 to ~1.69. Higher = more relevant.",
             example: 0.43,
           }),
         }),

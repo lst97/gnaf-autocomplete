@@ -1,6 +1,16 @@
 import { getSql } from "./client";
 
-const sql = getSql();
+/**
+ * Lazily-initialised connection reference. Module-level `getSql()` is
+ * unsafe when tests run in parallel because another test file may have
+ * mutated `process.env` (e.g. config.test.ts).  Deferring to first call
+ * ensures the correct DATABASE_URL is in effect.
+ */
+let _sql: ReturnType<typeof getSql> | null = null;
+function sql(): ReturnType<typeof getSql> {
+  if (!_sql) _sql = getSql();
+  return _sql;
+}
 
 /**
  * Tier 0c: btree on (state, number_first) — <1ms.
@@ -9,7 +19,7 @@ const sql = getSql();
  * Index Only Scan with LIMIT 10 — no sort needed.
  */
 export function tier0NumberQuery(state: string, number: number, limit: number, offset = 0) {
-  return sql`
+  return sql()`
     SELECT address_detail_pid, display, locality, lat, lon, state, postcode, confidence_norm
     FROM address_search_mv
     WHERE state = ${state}
@@ -25,7 +35,7 @@ export function tier0NumberQuery(state: string, number: number, limit: number, o
  */
 export function tier0Query(state: string, postcode: string | null, limit: number, offset = 0) {
   if (postcode) {
-    return sql`
+    return sql()`
       SELECT address_detail_pid, display, locality, lat, lon, state, postcode, confidence_norm
       FROM address_search_mv
       WHERE state = ${state}
@@ -35,7 +45,7 @@ export function tier0Query(state: string, postcode: string | null, limit: number
       OFFSET ${offset}
     `;
   }
-  return sql`
+  return sql()`
     SELECT address_detail_pid, display, locality, lat, lon, state, postcode, confidence_norm
     FROM address_search_mv
     WHERE state = ${state}
@@ -54,7 +64,7 @@ export function tier0LocalityQuery(
   limit: number,
   offset = 0,
 ) {
-  return sql`
+  return sql()`
     SELECT address_detail_pid, display, locality, lat, lon, state, postcode, confidence_norm
     FROM address_search_mv
     WHERE state = ${state}
@@ -153,7 +163,7 @@ export function tier1StreetQuery(
   params.push(offset);
   const offsetIdx = nextIdx;
 
-  return sql.unsafe(
+  return sql().unsafe(
     `
     SELECT address_detail_pid, display, locality, lat, lon, state, postcode, confidence_norm
     FROM address_search_mv
@@ -203,7 +213,7 @@ export function tier2TrigramQuery(
   params.push(offset);
 
   const where = conditions.join(" AND ");
-  return sql.unsafe(
+  return sql().unsafe(
     `
     SELECT DISTINCT ON (display)
       address_detail_pid, display, locality, lat, lon, state, postcode, confidence_norm,
@@ -275,7 +285,7 @@ export function tier4MultiWordQuery(
   const where = conditions.join(" AND ");
   // LIMIT 8000 before DISTINCT ON — sorts 200K+ rows for common words like
   // "melbourne"; capping keeps the sort under 200ms without losing top results.
-  return sql.unsafe(
+  return sql().unsafe(
     `
     SELECT DISTINCT ON (display)
       address_detail_pid, display, lat, lon, state, postcode, confidence_norm,
@@ -306,7 +316,7 @@ export function tier4MultiWordQuery(
  */
 export function tierPostcodeQuery(postcodePrefix: string, limit: number, offset = 0) {
   if (postcodePrefix.length === 4) {
-    return sql`
+    return sql()`
       SELECT address_detail_pid, display, locality, lat, lon, state, postcode, confidence_norm
       FROM address_search_mv
       WHERE postcode = ${postcodePrefix}
@@ -315,7 +325,7 @@ export function tierPostcodeQuery(postcodePrefix: string, limit: number, offset 
       OFFSET ${offset}
     `;
   }
-  return sql`
+  return sql()`
     SELECT address_detail_pid, display, locality, lat, lon, state, postcode, confidence_norm
     FROM address_search_mv
     WHERE postcode LIKE ${`${postcodePrefix}%`}

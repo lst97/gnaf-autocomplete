@@ -208,9 +208,12 @@ function findPrefixToken(tokens: string[], startIdx: number): string | null {
     if (
       !STATE_LC.has(lc) &&
       !FLAT_TYPE_LC.has(lc) &&
-      !STREET_TYPE_LC.has(lc) &&
-      /^[a-z]+$/.test(lc) &&
-      t.length >= 1
+      /^[a-z]/.test(lc) &&
+      t.length >= 1 &&
+      // Reject state-correction tokens ("nzw" → NSW) as street prefixes.
+      // Only for ≥3 chars; 2-char tokens are too ambiguous.
+      // Skip STREET_TYPE_LC tokens ("way" → WA is a false positive).
+      (t.length < 3 || STREET_TYPE_LC.has(lc) || !correctStateToken(lc))
     ) {
       return t;
     }
@@ -226,7 +229,6 @@ function extractLeadingParts(tokens: string[]): {
 
   let idx = 0;
 
-  // Skip leading flat type codes
   while (idx < tokens.length) {
     const t = tokens[idx];
     if (t && (FLAT_TYPE_LC.has(t.toLowerCase()) || isFlatTypePrefixed(t))) {
@@ -239,7 +241,6 @@ function extractLeadingParts(tokens: string[]): {
   let candidate = tokens[idx];
   if (!candidate) return { streetNumber: null, streetPrefix: null };
 
-  // Strip leading/trailing commas
   candidate = candidate.replace(/^,|,$/g, "");
 
   // Handle number range "N-M"
@@ -268,7 +269,20 @@ function extractLeadingParts(tokens: string[]): {
     const prefix = findPrefixToken(tokens, idx + 1);
     return { streetNumber: Number(candidate), streetPrefix: prefix };
   }
-  if (/^[a-z]+$/.test(candidate) && !STATE_LC.has(candidate) && candidate.length >= 1) {
+  // Must START with a letter — same rationale as findPrefixToken above. Tokens
+  // like "a1" / "b1" should route to tier1 (fast btree) not tier4 (slow trigram).
+  // Reject tokens that are state-code corrections ("nzw" → NSW) as
+  // street prefixes — the router should use the corrected state instead
+  // of searching for a non-existent street. Only applies for ≥3 chars;
+  // 2-char tokens like "sy" are too ambiguous to confidently call state
+  // typos (they're almost always locality prefixes like "sydney").
+  // Skip STREET_TYPE_LC tokens ("way" → WA is a false positive).
+  if (
+    /^[a-z]/.test(candidate) &&
+    !STATE_LC.has(candidate) &&
+    (candidate.length < 3 || STREET_TYPE_LC.has(candidate) || !correctStateToken(candidate)) &&
+    candidate.length >= 1
+  ) {
     return { streetNumber: null, streetPrefix: candidate };
   }
   return { streetNumber: null, streetPrefix: null };
@@ -300,9 +314,68 @@ function extractFlatNumber(tokens: string[]): number | null {
 //  Main entry point
 // ──────────────────────────────────────────────────────────────────────────
 
+/** Build an empty TokenizedQuery for queries that can never match an address
+ *  (e.g. all-digit input). Returns an object with all nullable fields null. */
+function makeEmptyTokenizedQuery(q: string, normalized: string, tokens: string[]): TokenizedQuery {
+  return {
+    raw: q,
+    normalized,
+    tokens,
+    startsWithNumber: tokens[0] ? /^\d+$/.test(tokens[0]) : false,
+    streetNumber: null,
+    streetPrefix: null,
+    isPurePrefix: false,
+    localityPrefix: null,
+    flatTypeAhead: false,
+    flatNumber: null,
+    correctedFrom: null,
+    localityCorrectedFrom: null,
+    stateCorrectedFrom: null,
+  };
+}
+
 export function tokenizeQuery(q: string): TokenizedQuery {
   const normalized = q.trim().toLowerCase();
-  const tokens = normalized.split(/[\s/]+/).filter(Boolean);
+  // Hyphen handling: split on hyphens EXCEPT between two digits (those are
+  // address ranges like "12-56 main st").
+  //   "12-MAIN-ST" → "12 main st"   (splits, routes to tier1)
+  //   "12-56 main st" → "12-56 main st"  (range preserved)
+  //   "1a-2b test" → "1a 2b test"   (letter hyphens split)
+  // Uses a placeholder (\u0000) to protect digit-digit hyphens across the
+  // split step. A simple lookbehind regex fails for "2-M" (digit-letter)
+  // because the lookbehind matches when the preceding char IS a digit.
+  const RANGE = "\u0000";
+  const hyphenNormalized = normalized
+    .replace(/(\d)-(\d)/g, `$1${RANGE}$2`)
+    .replace(/-/g, " ")
+    .replace(new RegExp(RANGE, "g"), "-");
+  const tokens = hyphenNormalized.split(/[\s/]+/).filter(Boolean);
+
+  // ── Address normalizer ──
+  // Filter queries that cannot match an Australian address based on common
+  // address structure rules. This protects against:
+  //   - All-digit queries ("12 34 56") → tier4 trigram matches millions
+  //   - 3+ consecutive numbers ("12 34 56 test") → not a valid address
+  // Legitimate addresses always have at most 2 consecutive numbers. A
+  // bare range like "12-56" is allowed (preserved by hyphen handling above)
+  // and routes to tier1; the all-digit guard only fires for queries that
+  // are exclusively numbers with no range hyphens.
+  if (tokens.length > 0) {
+    if (tokens.every((t) => /^\d+$/.test(t))) {
+      return makeEmptyTokenizedQuery(q, normalized, tokens);
+    }
+    let consecutiveNumbers = 0;
+    for (const t of tokens) {
+      if (/^\d+$/.test(t)) {
+        consecutiveNumbers++;
+        if (consecutiveNumbers >= 3) {
+          return makeEmptyTokenizedQuery(q, normalized, tokens);
+        }
+      } else {
+        consecutiveNumbers = 0;
+      }
+    }
+  }
 
   const startsWithNumber = tokens.length > 0 && tokens[0] ? /^\d+$/.test(tokens[0]) : false;
   const isPurePrefix = tokens.every((t) => t.length <= 4 || /^[a-z]+$/.test(t));
@@ -325,7 +398,6 @@ export function tokenizeQuery(q: string): TokenizedQuery {
     }
   }
 
-  // Extract locality prefix (last token)
   const rawLast = tokens[tokens.length - 1];
   const lastToken = rawLast ? rawLast.replace(/^,+|,+$/g, "") : null;
   let localityPrefix: string | null =
@@ -334,7 +406,11 @@ export function tokenizeQuery(q: string): TokenizedQuery {
     !/^\d+$/.test(lastToken) &&
     !/^\d+-\d+$/.test(lastToken) &&
     !VALID_STATES.has(lastToken.toUpperCase()) &&
-    !STREET_TYPE_LC.has(lastToken)
+    !STREET_TYPE_LC.has(lastToken) &&
+    // If the last token would be state-corrected (e.g. "nzw" → "NSW"),
+    // it's a state typo, not a locality — treat it as null.
+    // Only applies for ≥3 chars; 2-char tokens are too ambiguous.
+    (lastToken.length < 3 || !correctStateToken(lastToken))
       ? lastToken
       : null;
 
@@ -357,12 +433,16 @@ export function tokenizeQuery(q: string): TokenizedQuery {
   // State correction: scan tokens; if a correction is found, record the
   // original token so `detectStateFilter` can return the corrected value.
   // Skip tokens that are known non-states (flat types, street types).
+  // 2-char tokens are skipped because any 2-char string is at Levenshtein
+  // distance 1-2 from most 3-char state codes, causing false positives
+  // like "sy" → "SA" (sy is "sydney", not South Australia).
   let stateCorrectedFrom: string | null = null;
   for (const token of tokens) {
     const lc = token.toLowerCase();
     if (VALID_STATES.has(token.toUpperCase())) {
       break; // exact match exists — no correction needed
     }
+    if (lc.length < 3) continue; // 2-char tokens are too ambiguous
     if (FLAT_TYPE_LC.has(lc) || STREET_TYPE_LC.has(lc)) continue;
     const corrected = correctStateToken(token);
     if (corrected) {

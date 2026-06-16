@@ -4,8 +4,8 @@ import {
   STREET_TYPE_LC,
   tokenizeQuery,
 } from "../search/tokenizer";
+import { getSql } from "./client";
 
-// Full → abbreviated street type mapping for display boost.
 const STREET_TYPE_ABBREV: Record<string, string> = {
   st: "st",
   street: "st",
@@ -114,9 +114,25 @@ export function routeQuery(
 ): RouterResult {
   const tokenized = tokenizeQuery(q);
 
-  // Detect state from query tokens if not provided as filter
   const effectiveState = state ?? detectStateFilter(tokenized);
   const effectivePostcode = postcode ?? detectPostcodeFilter(tokenized);
+
+  // Short-circuit: queries with no extractable address content (e.g. all
+  // digits like "12 34 56 78") can never match an address. Return an empty
+  // result set immediately instead of falling to tier4 trigram which
+  // matches millions of rows containing any of those digit sequences.
+  if (
+    !tokenized.streetPrefix &&
+    !tokenized.streetNumber &&
+    !tokenized.localityPrefix &&
+    !effectiveState &&
+    !effectivePostcode
+  ) {
+    return {
+      sql: getSql()`SELECT * FROM address_search_mv WHERE FALSE LIMIT 0`,
+      tier: "tier2",
+    };
+  }
 
   // Tier 0: state+postcode equality (<1ms, small result set)
   // Skip when the query has 5+ tokens AND a street prefix — the user entered
@@ -125,7 +141,6 @@ export function routeQuery(
   const prefix = tokenized.streetPrefix;
   const hasFullAddress = prefix && prefix.length >= 3 && tokenized.tokens.length >= 5;
 
-  // Correction fields that flow through to the API response for all tiers.
   const correctionFields: { localityCorrectedFrom?: string; stateCorrectedFrom?: string } = {};
   if (tokenized.localityCorrectedFrom)
     correctionFields.localityCorrectedFrom = tokenized.localityCorrectedFrom;
@@ -180,7 +195,6 @@ export function routeQuery(
     }
   }
 
-  // Detect street type suffix for display boost.
   let streetAbbrev: string | null = null;
   for (const t of tokenized.tokens) {
     const lc = t.replace(/^,+|,+$/g, "").toLowerCase();
