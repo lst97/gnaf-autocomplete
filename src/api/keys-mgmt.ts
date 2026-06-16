@@ -1,8 +1,8 @@
 import { Elysia } from "elysia";
 import { AppError, ERROR_CODES } from "../lib/errors";
-import { logger } from "../lib/logger";
-import { findKeyByPrefix, findKeyDetailByDomain, findKeyStatus, revokeKey } from "../sql/keys";
-import { checkVerifyRateLimit, validateDomain } from "./keys";
+import { verifyKey } from "../lib/key-hash";
+import { findKeyByPrefix, findKeyDetailByDomain, findKeyStatus } from "../sql/keys";
+import { validateDomain } from "./keys";
 
 export const keyMgmtRoute = new Elysia()
   .post(
@@ -27,8 +27,7 @@ export const keyMgmtRoute = new Elysia()
       // biome-ignore lint/style/noNonNullAssertion: length check above guarantees existence
       const row = rows[0]!;
 
-      const valid = await Bun.password.verify(api_key, row.key_hash);
-      if (!valid) {
+      if (!verifyKey(api_key, row.key_hash)) {
         throw new AppError("API key does not match.", 403, ERROR_CODES.FORBIDDEN);
       }
       if (row.status !== "active") {
@@ -51,6 +50,7 @@ export const keyMgmtRoute = new Elysia()
           prefix: r.prefix,
           status: r.status,
           created_at: r.created_at,
+          expires_at: r.expires_at ?? null,
           last_used_at: r.last_used_at ?? null,
           last_verified_at: r.last_verified_at ?? null,
           request_count: r.request_count,
@@ -66,45 +66,7 @@ export const keyMgmtRoute = new Elysia()
       },
     },
   )
-  .post(
-    "/api/keys/:prefix/revoke",
-    async ({ params, request }) => {
-      const { prefix } = params;
 
-      const ip =
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-        request.headers.get("cf-connecting-ip") ??
-        "unknown";
-      if (!checkVerifyRateLimit(ip)) {
-        throw new AppError(
-          "Too many attempts. Try again in a minute.",
-          429,
-          ERROR_CODES.RATE_LIMITED,
-        );
-      }
-
-      const rows = await findKeyByPrefix(prefix);
-      if (rows.length === 0) {
-        throw new AppError("Key not found.", 404, ERROR_CODES.NOT_FOUND);
-      }
-      // biome-ignore lint/style/noNonNullAssertion: length check above guarantees existence
-      const row = rows[0]!;
-      if (row.status === "revoked") {
-        return { status: "revoked", message: "Key was already revoked." };
-      }
-
-      await revokeKey(prefix);
-      logger.info({ domain: row.domain, key_prefix: prefix }, "key_revoked");
-      return { status: "revoked", domain: row.domain, message: "Key revoked successfully." };
-    },
-    {
-      detail: {
-        tags: ["Auth"],
-        summary: "Revoke an API key by prefix",
-        description: "Revokes a key so it can no longer be used.",
-      },
-    },
-  )
   .get(
     "/api/keys/:prefix/status",
     async ({ params }) => {

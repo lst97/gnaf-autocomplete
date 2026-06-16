@@ -1,7 +1,8 @@
-import { createHash } from "node:crypto";
 import { Elysia, t } from "elysia";
-import { getConfig } from "../config";
+import { env } from "../env";
+import { getRealIp } from "../lib/client-ip";
 import { AppError, ERROR_CODES } from "../lib/errors";
+import { hashKey } from "../lib/key-hash";
 import { logger } from "../lib/logger";
 import { checkKeygenRateLimit, validateDomain } from "./keys";
 
@@ -9,8 +10,7 @@ export const keyGenRoute = new Elysia()
   .get(
     "/api/config",
     () => {
-      const config = getConfig();
-      return { turnstileSiteKey: config.TURNSTILE_SITE_KEY, gnafVersion: config.GNAF_VERSION };
+      return { turnstileSiteKey: env.TURNSTILE_SITE_KEY, gnafVersion: env.GNAF_VERSION };
     },
     {
       detail: {
@@ -27,10 +27,7 @@ export const keyGenRoute = new Elysia()
       const start = performance.now();
 
       // Rate limit by IP
-      const ip =
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-        request.headers.get("cf-connecting-ip") ??
-        "unknown";
+      const ip = getRealIp(request);
       const { allowed } = checkKeygenRateLimit(ip);
       if (!allowed) {
         throw new AppError(
@@ -53,22 +50,21 @@ export const keyGenRoute = new Elysia()
       }
 
       // 1b. Check domain key limit
-      const config = getConfig();
       const { countDomainKeys, insertApiKey } = await import("../sql/keys");
       const existingCount = await countDomainKeys(domain);
-      const remaining = config.MAX_KEYS_PER_DOMAIN - existingCount;
+      const remaining = env.MAX_KEYS_PER_DOMAIN - existingCount;
       if (remaining <= 0) {
         throw new AppError(
-          `Domain "${domain}" already has ${existingCount} key(s). Maximum is ${config.MAX_KEYS_PER_DOMAIN}. Revoke an existing key first.`,
+          `Domain "${domain}" already has ${existingCount} key(s). Maximum is ${env.MAX_KEYS_PER_DOMAIN}. Revoke an existing key first.`,
           429,
           ERROR_CODES.DOMAIN_KEY_LIMIT,
         );
       }
 
       // 2. Validate Turnstile token
-      if (config.TURNSTILE_SECRET_KEY) {
+      if (env.NODE_ENV === "production" && env.TURNSTILE_SECRET_KEY) {
         const formData = new URLSearchParams();
-        formData.append("secret", config.TURNSTILE_SECRET_KEY);
+        formData.append("secret", env.TURNSTILE_SECRET_KEY);
         formData.append("response", turnstile_token ?? "");
 
         const turnstileRes = await fetch(
@@ -107,25 +103,21 @@ export const keyGenRoute = new Elysia()
           .map((b) => b.toString(16).padStart(2, "0"))
           .join("");
 
-        // SHA-256 (fast, <1ms) — bcrypt adds 50-100ms per request for no benefit on random bearer tokens.
-        const keyHash = createHash("sha256").update(apiKey).digest("hex");
+        const keyHash = hashKey(apiKey);
         await insertApiKey(prefix, keyHash, domain, verificationToken, now);
 
         keys.push({ key: apiKey, prefix, verification_token: verificationToken });
       }
 
       const tookMs = Math.round(performance.now() - start);
-      logger.info(
-        { domain, count: keys.length, took_ms: tookMs },
-        "keys_generated",
-      );
+      logger.info({ domain, count: keys.length, took_ms: tookMs }, "keys_generated");
 
       set.status = 201;
       return {
         keys,
         domain,
         generated_count: keys.length,
-        max_allowed: config.MAX_KEYS_PER_DOMAIN,
+        max_allowed: env.MAX_KEYS_PER_DOMAIN,
         total_for_domain: existingCount + keys.length,
       };
     },

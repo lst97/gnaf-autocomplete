@@ -38,7 +38,7 @@ export async function fetchKeyStats(): Promise<KeyStatsRow[]> {
   ` as Promise<KeyStatsRow[]>;
 }
 
-export async function fetchTopDomains(limit = 10): Promise<TopDomainRow[]> {
+export async function fetchTopDomains(limit = 10, offset = 0): Promise<TopDomainRow[]> {
   const sql = getSql();
   return sql`
     SELECT
@@ -58,7 +58,17 @@ export async function fetchTopDomains(limit = 10): Promise<TopDomainRow[]> {
     GROUP BY domain
     ORDER BY SUM(request_count) DESC
     LIMIT ${limit}
+    OFFSET ${offset}
   ` as Promise<TopDomainRow[]>;
+}
+
+export async function fetchTopDomainsCount(): Promise<number> {
+  const sql = getSql();
+  const rows = await sql<Array<{ cnt: number }>>`
+    SELECT COUNT(*)::bigint AS cnt
+    FROM (SELECT domain FROM api_keys WHERE status = 'active' GROUP BY domain) sub
+  `;
+  return Number(rows[0]?.cnt ?? 0);
 }
 
 export async function fetchAddressCount(): Promise<AddressCountRow[]> {

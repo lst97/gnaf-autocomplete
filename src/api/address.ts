@@ -5,6 +5,7 @@ import { lookupAddressById } from "../sql/address";
 export const addressRoute = new Elysia().get(
   "/address/:id",
   async ({ params: { id } }) => {
+    const start = performance.now();
     const rows = await lookupAddressById(id);
 
     if (rows.length === 0) {
@@ -12,6 +13,7 @@ export const addressRoute = new Elysia().get(
     }
 
     const r = rows[0] as Record<string, unknown>;
+    const tookMs = Math.round(performance.now() - start);
     return {
       id: String(r.address_detail_pid ?? ""),
       display: String(r.display ?? ""),
@@ -24,6 +26,7 @@ export const addressRoute = new Elysia().get(
       confidence_norm: r.confidence_norm != null ? Number(r.confidence_norm) : null,
       lat: r.lat != null ? Number(r.lat) : null,
       lon: r.lon != null ? Number(r.lon) : null,
+      took_ms: tookMs,
     };
   },
   {
@@ -48,6 +51,7 @@ export const addressRoute = new Elysia().get(
         confidence_norm: t.Nullable(t.Number({ description: "Normalized confidence (0.0-1.0)." })),
         lat: t.Nullable(t.Number({ description: "Latitude." })),
         lon: t.Nullable(t.Number({ description: "Longitude." })),
+        took_ms: t.Number({ description: "Server-side processing time in ms." }),
       }),
       404: t.Object({
         error: t.String(),

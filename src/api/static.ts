@@ -23,8 +23,14 @@ export const staticRoute = new Elysia()
     }
     return new Response("", { status: 404 });
   })
+  .get("/assets/favicon.svg", async () =>
+    serveStatic("pages/assets/favicon.svg", "image/svg+xml", "Not found"),
+  )
   .get("/robots.txt", async () =>
     serveStatic("pages/robots.txt", "text/plain; charset=utf-8", "User-agent: *\nDisallow: /\n"),
+  )
+  .get("/llms.txt", async () =>
+    serveStatic("pages/llms.txt", "text/plain; charset=utf-8", "Not found"),
   )
   .get("/.well-known/security.txt", async () =>
     serveStatic("pages/.well-known/security.txt", "text/plain; charset=utf-8", securityTxtFallback),
@@ -35,7 +41,7 @@ export const staticRoute = new Elysia()
   .get("/style.css", async () =>
     serveStatic("pages/style.css", "text/css; charset=utf-8", "/* not found */"),
   )
-  // Tab fragments (lazy-loaded by main.html)
+  // Tab fragments — lazy-loaded by main.html
   .get("/suggest-tab.html", async () =>
     serveStatic("pages/suggest-tab.html", "text/html; charset=utf-8"),
   )
@@ -52,7 +58,6 @@ export const staticRoute = new Elysia()
   .get("/system-tab.html", async () =>
     serveStatic("pages/system-tab.html", "text/html; charset=utf-8"),
   )
-  // JS modules
   .get("/assets/common.js", async () =>
     serveStatic("pages/assets/common.js", "application/javascript; charset=utf-8", "// not found"),
   )
@@ -85,6 +90,5 @@ export const staticRoute = new Elysia()
       { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } },
     );
   })
-  // Redirects
   .get("/docs", () => Response.redirect("/openapi", 302))
   .get("/openapi.json", () => Response.redirect("/openapi/json", 302));

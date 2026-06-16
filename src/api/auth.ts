@@ -1,14 +1,10 @@
-import { createHash } from "node:crypto";
 import { Elysia } from "elysia";
-import { getConfig } from "../config";
-import { AppError } from "../lib/errors";
+import { env } from "../env";
+import { AppError, ERROR_CODES } from "../lib/errors";
+import { verifyKey } from "../lib/key-hash";
 import { logger } from "../lib/logger";
-import {
-  incrementKeyRateCount,
-  incrementKeyRequestCount,
-  lookupApiKeyByPrefix,
-  resetKeyRateWindow,
-} from "../sql/auth";
+import { resetKeyWindow, touchKey } from "../lib/touch-key";
+import { lookupApiKeyByPrefix } from "../sql/auth";
 import type { AuthContext } from "../types";
 
 function hostnameMatches(needle: string, registeredDomain: string): boolean {
@@ -40,37 +36,45 @@ export const authDerive = async ({
     throw new AppError(
       "Missing API key. Provide it via the X-API-Key header.",
       401,
-      "MISSING_API_KEY",
+      ERROR_CODES.MISSING_API_KEY,
     );
   }
 
   const prefix = apiKey.startsWith("gnaf_pk_") ? apiKey.slice(8, 16) : apiKey.slice(0, 8);
   if (prefix.length < 4) {
-    throw new AppError("Invalid API key.", 401, "INVALID_API_KEY");
+    throw new AppError("Invalid API key.", 401, ERROR_CODES.INVALID_API_KEY);
   }
 
   const rows = await lookupApiKeyByPrefix(prefix);
 
   if (rows.length === 0) {
-    throw new AppError("Invalid API key.", 401, "INVALID_API_KEY");
+    throw new AppError("Invalid API key.", 401, ERROR_CODES.INVALID_API_KEY);
   }
 
   // biome-ignore lint/style/noNonNullAssertion: length check above guarantees existence
   const row = rows[0]!;
 
-  const valid = createHash("sha256").update(apiKey).digest("hex") === row.key_hash;
-  if (!valid) {
-    throw new AppError("Invalid API key.", 401, "INVALID_API_KEY");
+  if (!verifyKey(apiKey, row.key_hash)) {
+    throw new AppError("Invalid API key.", 401, ERROR_CODES.INVALID_API_KEY);
   }
 
   if (row.status === "revoked") {
-    throw new AppError("API key has been revoked.", 403, "KEY_REVOKED");
+    throw new AppError("API key has been revoked.", 403, ERROR_CODES.KEY_REVOKED);
   }
   if (row.status === "pending") {
     throw new AppError(
       "API key is pending domain verification. Add the DNS TXT record and verify at /keys.",
       403,
-      "KEY_PENDING",
+      ERROR_CODES.KEY_PENDING,
+    );
+  }
+
+  // Expiry check (runs before rate-limit update — no row write for expired keys)
+  if (row.expires_at && new Date(row.expires_at) < new Date()) {
+    throw new AppError(
+      "API key has expired. Generate a new key at /keys.",
+      401,
+      ERROR_CODES.KEY_EXPIRED,
     );
   }
 
@@ -79,8 +83,7 @@ export const authDerive = async ({
   const refererHost = extractHostname(referer);
   const originHost = extractHostname(origin);
 
-  const config = getConfig();
-  const publicUrlHost = config.PUBLIC_URL ? extractHostname(config.PUBLIC_URL) : null;
+  const publicUrlHost = env.PUBLIC_URL ? extractHostname(env.PUBLIC_URL) : null;
 
   // Allow requests from the API's own public URL to use any API key (for testing from the UI)
   const isSameOrigin =
@@ -92,43 +95,45 @@ export const authDerive = async ({
       throw new AppError(
         "Domain mismatch. The Origin header does not match the key's registered domain.",
         403,
-        "DOMAIN_MISMATCH",
+        ERROR_CODES.DOMAIN_MISMATCH,
       );
     }
     if (refererHost && !hostnameMatches(refererHost, row.domain)) {
       throw new AppError(
         "Domain mismatch. The Referer header does not match the key's registered domain.",
         403,
-        "DOMAIN_MISMATCH",
+        ERROR_CODES.DOMAIN_MISMATCH,
       );
     }
   }
 
+  // Rate-limit logic with throttled `expires_at` auto-extension
   const now = new Date();
-  let rateRemaining = config.API_KEY_RATE_LIMIT;
+  let rateRemaining = env.API_KEY_RATE_LIMIT;
 
   if (row.rl_window_start) {
-    const windowEnd = new Date(row.rl_window_start.getTime() + config.API_KEY_RATE_WINDOW_MS);
+    const windowEnd = new Date(row.rl_window_start.getTime() + env.API_KEY_RATE_WINDOW_MS);
     if (now < windowEnd) {
-      if (row.rl_window_count >= config.API_KEY_RATE_LIMIT) {
+      if (row.rl_window_count >= env.API_KEY_RATE_LIMIT) {
         set.headers = {
-          "X-RateLimit-Limit": String(config.API_KEY_RATE_LIMIT),
+          "X-RateLimit-Limit": String(env.API_KEY_RATE_LIMIT),
           "X-RateLimit-Remaining": "0",
         };
-        throw new AppError("Key rate limit exceeded.", 429, "KEY_RATE_LIMITED");
+        throw new AppError("Key rate limit exceeded.", 429, ERROR_CODES.KEY_RATE_LIMITED);
       }
-      rateRemaining = config.API_KEY_RATE_LIMIT - row.rl_window_count - 1;
-      await incrementKeyRateCount(prefix, now);
+      rateRemaining = env.API_KEY_RATE_LIMIT - row.rl_window_count - 1;
+      await touchKey(prefix, now);
     } else {
-      rateRemaining = config.API_KEY_RATE_LIMIT - 1;
-      await resetKeyRateWindow(prefix, now);
+      rateRemaining = env.API_KEY_RATE_LIMIT - 1;
+      await resetKeyWindow(prefix, now);
     }
   } else {
-    rateRemaining = config.API_KEY_RATE_LIMIT - 1;
-    await resetKeyRateWindow(prefix, now);
+    rateRemaining = env.API_KEY_RATE_LIMIT - 1;
+    await resetKeyWindow(prefix, now);
   }
 
-  await incrementKeyRequestCount(prefix);
+  // Clamp to non-negative (race conditions or corrupted counters)
+  rateRemaining = Math.max(0, rateRemaining);
 
   const tookMs = Math.round(performance.now() - start);
   const headersForLog = {
@@ -150,7 +155,7 @@ export const authDerive = async ({
   );
 
   set.headers = {
-    "X-RateLimit-Limit": String(config.API_KEY_RATE_LIMIT),
+    "X-RateLimit-Limit": String(env.API_KEY_RATE_LIMIT),
     "X-RateLimit-Remaining": String(rateRemaining),
     "X-Key-Status": "active",
   } as Record<string, string>;

@@ -1,8 +1,14 @@
 import { Elysia } from "elysia";
-import { getConfig } from "../config";
+import { env } from "../env";
+import { getRealIp } from "../lib/client-ip";
 import { AppError, ERROR_CODES } from "../lib/errors";
 import { logger } from "../lib/logger";
-import { activateAllPendingKeysForDomain, findKeyForVerification, findRecoveryKeyDetailByDomain } from "../sql/keys";
+import {
+  activateAllPendingKeysForDomain,
+  bulkRevokeKeysForDomain,
+  findKeyForVerification,
+  findRecoveryKeyDetailByDomain,
+} from "../sql/keys";
 import { checkVerifyRateLimit, generateToken, recoverySessions, validateDomain } from "./keys";
 
 export const keyRecoverRoute = new Elysia()
@@ -14,10 +20,9 @@ export const keyRecoverRoute = new Elysia()
         turnstile_token?: string;
       };
 
-      const tsConfig = getConfig();
-      if (tsConfig.TURNSTILE_SECRET_KEY) {
+      if (env.NODE_ENV === "production" && env.TURNSTILE_SECRET_KEY) {
         const fd = new URLSearchParams();
-        fd.append("secret", tsConfig.TURNSTILE_SECRET_KEY);
+        fd.append("secret", env.TURNSTILE_SECRET_KEY);
         fd.append("response", tsToken ?? "");
         const tRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
           method: "POST",
@@ -67,10 +72,9 @@ export const keyRecoverRoute = new Elysia()
         turnstile_token: tsToken,
       } = body as { domain: string; verification_token: string; turnstile_token?: string };
 
-      const tsConfig = getConfig();
-      if (tsConfig.TURNSTILE_SECRET_KEY) {
+      if (env.NODE_ENV === "production" && env.TURNSTILE_SECRET_KEY) {
         const fd = new URLSearchParams();
-        fd.append("secret", tsConfig.TURNSTILE_SECRET_KEY);
+        fd.append("secret", env.TURNSTILE_SECRET_KEY);
         fd.append("response", tsToken ?? "");
         const tRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
           method: "POST",
@@ -82,10 +86,7 @@ export const keyRecoverRoute = new Elysia()
         }
       }
 
-      const ip =
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-        request.headers.get("cf-connecting-ip") ??
-        "unknown";
+      const ip = getRealIp(request);
       if (!checkVerifyRateLimit(ip)) {
         throw new AppError("Too many attempts.", 429, ERROR_CODES.RATE_LIMITED);
       }
@@ -104,7 +105,6 @@ export const keyRecoverRoute = new Elysia()
         );
       }
 
-      // Check DNS TXT records
       const expectedValue = `gnaf-mgmt=${verification_token}`;
       let found = false;
       try {
@@ -137,7 +137,7 @@ export const keyRecoverRoute = new Elysia()
       for (const [k, v] of recoverySessions) {
         if (v.domain === domain && k !== verification_token) recoverySessions.delete(k);
       }
-      recoverySessions.delete(verification_token);
+      // Session stays alive for the revoke step — expires naturally after 30 min
 
       return {
         status: "verified",
@@ -146,6 +146,7 @@ export const keyRecoverRoute = new Elysia()
           prefix: r.prefix,
           status: r.status,
           created_at: r.created_at,
+          expires_at: r.expires_at ?? null,
           last_used_at: r.last_used_at ?? null,
           last_verified_at: r.last_verified_at ?? null,
           request_count: r.request_count,
@@ -166,10 +167,7 @@ export const keyRecoverRoute = new Elysia()
     async ({ params, request }) => {
       const { prefix } = params;
 
-      const ip =
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-        request.headers.get("cf-connecting-ip") ??
-        "unknown";
+      const ip = getRealIp(request);
       if (!checkVerifyRateLimit(ip)) {
         throw new AppError(
           "Too many verification attempts. Try again in a minute.",
@@ -262,6 +260,61 @@ export const keyRecoverRoute = new Elysia()
         summary: "Verify domain ownership via DNS TXT record",
         description:
           "Checks the domain's DNS TXT records for the verification token. If found, the key status changes from 'pending' to 'active'. Rate-limited to 5 checks per minute per IP.",
+      },
+    },
+  )
+  .post(
+    "/api/keys/recover/revoke",
+    async ({ body, request }) => {
+      const { verification_token } = body as { verification_token?: string };
+
+      if (!verification_token) {
+        throw new AppError(
+          "Missing verification_token in body.",
+          400,
+          ERROR_CODES.VALIDATION_ERROR,
+        );
+      }
+
+      const ip = getRealIp(request);
+      if (!checkVerifyRateLimit(ip)) {
+        throw new AppError("Too many attempts.", 429, ERROR_CODES.RATE_LIMITED);
+      }
+
+      const session = recoverySessions.get(verification_token);
+      if (!session || session.expiresAt < Date.now()) {
+        throw new AppError(
+          "Invalid or expired verification token. Start recovery again.",
+          400,
+          ERROR_CODES.RECOVERY_INVALID,
+        );
+      }
+
+      const revoked = await bulkRevokeKeysForDomain(session.domain);
+
+      for (const [k, v] of recoverySessions) {
+        if (v.domain === session.domain) recoverySessions.delete(k);
+      }
+
+      logger.info({ domain: session.domain, revoked_count: revoked.length }, "bulk_revoke_via_dns");
+
+      return {
+        status: "success",
+        domain: session.domain,
+        revoked: revoked.map((r) => ({
+          prefix: r.prefix,
+          revoked_at: r.revoked_at,
+        })),
+        count: revoked.length,
+      };
+    },
+    {
+      detail: {
+        tags: ["Auth"],
+        summary: "Bulk-revoke all keys for a domain (DNS-authenticated)",
+        description:
+          "Revokes ALL active API keys for a domain. Requires a valid verification_token " +
+          "from a recovery session.",
       },
     },
   );

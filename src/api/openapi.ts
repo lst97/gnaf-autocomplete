@@ -16,4 +16,10 @@ export const openapiConfig = openapi({
     servers: [{ url: "http://localhost:8000" }],
   },
   path: "/openapi",
+  provider: "scalar",
+  scalar: {
+    theme: "solarized",
+    darkMode: false,
+    customCss: "",
+  },
 });

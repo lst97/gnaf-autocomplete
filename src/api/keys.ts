@@ -1,5 +1,7 @@
+import { toASCII } from "node:punycode";
 import { Elysia } from "elysia";
-import { getConfig } from "../config";
+import { env } from "../env";
+import { LruCache } from "../lib/cache";
 import { keyGenRoute } from "./keys-gen";
 import { keyMgmtRoute } from "./keys-mgmt";
 import { keyRecoverRoute } from "./keys-recover";
@@ -14,13 +16,13 @@ export const keysRoute = new Elysia().use(keyGenRoute).use(keyMgmtRoute).use(key
 //  Shared utilities (used by sub-modules)
 // ──────────────────────────────────────────────────────────
 
-const SPAM_TLDS = new Set(getConfig().DOMAIN_SPAM_TLDS.toLowerCase().split(/\s+/).filter(Boolean));
+const SPAM_TLDS = new Set(env.DOMAIN_SPAM_TLDS.toLowerCase().split(/\s+/).filter(Boolean));
 
-// Per-IP rate limiter for key generation
-const keygenIpMap = new Map<string, { count: number; windowStart: number }>();
+// Per-IP rate limiter for key generation (LRU-capped at 100k entries)
+const keygenIpMap = new LruCache<string, { count: number; windowStart: number }>(100_000, 3600000);
 
-// Per-IP rate limiter for verification/revoke
-const verifyIpMap = new Map<string, { count: number; windowStart: number }>();
+// Per-IP rate limiter for verification/revoke (LRU-capped at 100k entries)
+const verifyIpMap = new LruCache<string, { count: number; windowStart: number }>(100_000, 60000);
 
 // In-memory recovery sessions: domain → { token, expiresAt }
 const recoverySessions = new Map<
@@ -48,18 +50,17 @@ export function checkVerifyRateLimit(ip: string): boolean {
 }
 
 export function checkKeygenRateLimit(ip: string): { allowed: boolean; remaining: number } {
-  const config = getConfig();
   const now = Date.now();
   const entry = keygenIpMap.get(ip);
-  if (!entry || now - entry.windowStart > config.KEYGEN_RATE_WINDOW_MS) {
+  if (!entry || now - entry.windowStart > env.KEYGEN_RATE_WINDOW_MS) {
     keygenIpMap.set(ip, { count: 1, windowStart: now });
-    return { allowed: true, remaining: config.KEYGEN_RATE_LIMIT - 1 };
+    return { allowed: true, remaining: env.KEYGEN_RATE_LIMIT - 1 };
   }
-  if (entry.count >= config.KEYGEN_RATE_LIMIT) {
+  if (entry.count >= env.KEYGEN_RATE_LIMIT) {
     return { allowed: false, remaining: 0 };
   }
   entry.count++;
-  return { allowed: true, remaining: config.KEYGEN_RATE_LIMIT - entry.count };
+  return { allowed: true, remaining: env.KEYGEN_RATE_LIMIT - entry.count };
 }
 
 /** Validate a domain string — returns the cleaned hostname or null on rejection. */
@@ -71,6 +72,10 @@ export function validateDomain(input: string): string | null {
     return null;
   }
   let hostname = url.hostname;
+
+  // Reject Unicode homograph domains : the ASCII form (punycode) must match the raw input
+  const ascii = toASCII(hostname);
+  if (ascii !== hostname) return null;
 
   if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) return null;
   if (/^\[/.test(hostname)) return null;
@@ -86,3 +91,11 @@ export function validateDomain(input: string): string | null {
 }
 
 export { keygenIpMap, recoverySessions, verifyIpMap };
+
+/** Reset rate-limiter state (for tests and recovery from spam). */
+export function resetKeygenRateLimit(): void {
+  keygenIpMap.clear();
+}
+export function resetVerifyRateLimit(): void {
+  verifyIpMap.clear();
+}

@@ -1,16 +1,22 @@
 import { Elysia } from "elysia";
-import { getSql } from "../db/client";
+import { getReadWriteSql } from "../db/client";
+import { LruCache } from "../lib/cache";
+import { getRealIp } from "../lib/client-ip";
 import { AppError, ERROR_CODES } from "../lib/errors";
 import { logger } from "../lib/logger";
 import { WARMUP_TASKS } from "../sql/warmup";
 
-// Per-IP rate limiter: 1 warmup per 30 seconds.
-const warmupIpMap = new Map<string, number>();
+// Per-IP rate limiter: 1 warmup per 30 seconds (LRU-capped at 100k entries).
+const warmupIpMap = new LruCache<string, number>(100_000, 30000);
 
 function checkWarmupRateLimit(ip: string): boolean {
   const now = Date.now();
   const last = warmupIpMap.get(ip);
-  if (!last || now - last > 30_000) {
+  if (last === undefined) {
+    warmupIpMap.set(ip, now);
+    return true;
+  }
+  if (now - last > 30_000) {
     warmupIpMap.set(ip, now);
     return true;
   }
@@ -20,10 +26,7 @@ function checkWarmupRateLimit(ip: string): boolean {
 export const warmupRoute = new Elysia().post(
   "/warmup",
   async ({ request }) => {
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("cf-connecting-ip") ??
-      "unknown";
+    const ip = getRealIp(request);
     if (!checkWarmupRateLimit(ip)) {
       throw new AppError(
         "Too many warmup requests. Try again in 30 seconds.",
@@ -31,7 +34,7 @@ export const warmupRoute = new Elysia().post(
         ERROR_CODES.RATE_LIMITED,
       );
     }
-    const sql = getSql();
+    const sql = getReadWriteSql();
     const start = performance.now();
     let count = 0;
 

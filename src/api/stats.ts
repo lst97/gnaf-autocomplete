@@ -1,12 +1,21 @@
-import { Elysia } from "elysia";
-import { fetchAddressCount, fetchKeyStats, fetchTopDomains } from "../sql/stats";
+import { Elysia, t } from "elysia";
+import {
+  fetchAddressCount,
+  fetchKeyStats,
+  fetchTopDomains,
+  fetchTopDomainsCount,
+} from "../sql/stats";
 
 export const statsRoute = new Elysia().get(
   "/api/stats",
-  async () => {
-    const [keyStats, topDomains, totalSuggestRows] = await Promise.all([
+  async ({ query }) => {
+    const offset = Math.max(0, parseInt(query.offset ?? "0", 10) || 0);
+    const limit = Math.min(Math.max(1, parseInt(query.limit ?? "10", 10) || 10), 100);
+
+    const [keyStats, topDomains, totalDomains, totalSuggestRows] = await Promise.all([
       fetchKeyStats(),
-      fetchTopDomains(10),
+      fetchTopDomains(limit, offset),
+      fetchTopDomainsCount(),
       fetchAddressCount(),
     ]);
 
@@ -40,10 +49,17 @@ export const statsRoute = new Elysia().get(
           }),
         ),
       })),
+      total_domains: Number(totalDomains),
+      offset,
+      limit,
       addresses: Number(addressCount),
     };
   },
   {
+    query: t.Object({
+      offset: t.Optional(t.String({ description: "Pagination offset (default 0)" })),
+      limit: t.Optional(t.String({ description: "Page size, max 100 (default 10)" })),
+    }),
     detail: {
       tags: ["Meta"],
       summary: "Public usage statistics",

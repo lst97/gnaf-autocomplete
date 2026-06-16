@@ -1,10 +1,10 @@
 import pino from "pino";
-import { getConfig } from "../config";
+import { env } from "../env";
 
 const opts: pino.LoggerOptions = {
-  level: getConfig().LOG_LEVEL,
+  level: env.LOG_LEVEL,
 };
-if (process.env.NODE_ENV !== "production") {
+if (env.NODE_ENV !== "production") {
   opts.transport = { target: "pino/file", options: { destination: 1 } };
 }
 export const logger = pino(opts);

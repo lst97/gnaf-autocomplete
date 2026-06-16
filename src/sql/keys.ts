@@ -1,4 +1,4 @@
-import { getSql } from "../db/client";
+import { getReadWriteSql, getSql } from "../db/client";
 
 export interface KeyRow {
   key_hash: string;
@@ -10,6 +10,7 @@ export interface KeyDetailRow {
   prefix: string;
   status: string;
   created_at: Date;
+  expires_at: Date | null;
   last_used_at: Date | null;
   last_verified_at: Date | null;
   request_count: number;
@@ -37,6 +38,16 @@ export async function countDomainKeys(domain: string): Promise<number> {
   return (rows[0] as { cnt: number })?.cnt ?? 0;
 }
 
+export async function countActiveKeysForDomain(domain: string): Promise<number> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT COUNT(*)::int AS cnt FROM api_keys
+    WHERE domain = ${domain} AND status = 'active'
+      AND (expires_at IS NULL OR expires_at > now())
+  `;
+  return (rows[0] as { cnt: number })?.cnt ?? 0;
+}
+
 export async function insertApiKey(
   prefix: string,
   keyHash: string,
@@ -44,10 +55,10 @@ export async function insertApiKey(
   verificationToken: string,
   now: Date,
 ): Promise<void> {
-  const sql = getSql();
+  const sql = getReadWriteSql();
   await sql`
-    INSERT INTO api_keys (prefix, key_hash, domain, verification_token, status, created_at)
-    VALUES (${prefix}, ${keyHash}, ${domain}, ${verificationToken}, 'pending', ${now})
+    INSERT INTO api_keys (prefix, key_hash, domain, verification_token, status, created_at, expires_at)
+    VALUES (${prefix}, ${keyHash}, ${domain}, ${verificationToken}, 'pending', ${now}, ${now}::timestamptz + INTERVAL '90 days')
   `;
 }
 
@@ -61,18 +72,30 @@ export async function findKeyByPrefix(prefix: string): Promise<KeyRow[]> {
 export async function findKeyDetailByDomain(domain: string): Promise<KeyDetailRow[]> {
   const sql = getSql();
   return sql`
-    SELECT prefix, status, created_at, last_used_at, last_verified_at, request_count
+    SELECT prefix, status, created_at, expires_at, last_used_at, last_verified_at, request_count
     FROM api_keys WHERE domain = ${domain} AND status != 'revoked'
     ORDER BY created_at DESC
   ` as Promise<KeyDetailRow[]>;
 }
 
 export async function revokeKey(prefix: string): Promise<void> {
-  const sql = getSql();
+  const sql = getReadWriteSql();
   await sql`
     UPDATE api_keys SET status = 'revoked', revoked_at = now()
     WHERE prefix = ${prefix}
   `;
+}
+
+export async function bulkRevokeKeysForDomain(
+  domain: string,
+): Promise<Array<{ prefix: string; revoked_at: Date }>> {
+  const sql = getReadWriteSql();
+  const result = await sql`
+    UPDATE api_keys SET status = 'revoked', revoked_at = now()
+    WHERE domain = ${domain} AND status = 'active'
+    RETURNING prefix, revoked_at
+  `;
+  return result as Array<{ prefix: string; revoked_at: Date }>;
 }
 
 export async function findKeyStatus(prefix: string): Promise<KeyStatusRow[]> {
@@ -94,7 +117,7 @@ export async function findKeyForVerification(prefix: string): Promise<KeyVerifyR
 }
 
 export async function activateKey(prefix: string): Promise<void> {
-  const sql = getSql();
+  const sql = getReadWriteSql();
   await sql`
     UPDATE api_keys
     SET status = 'active', verification_token = NULL, last_verified_at = now()
@@ -103,7 +126,7 @@ export async function activateKey(prefix: string): Promise<void> {
 }
 
 export async function activateAllPendingKeysForDomain(domain: string): Promise<number> {
-  const sql = getSql();
+  const sql = getReadWriteSql();
   const result = await sql`
     UPDATE api_keys
     SET status = 'active', verification_token = NULL, last_verified_at = now()
@@ -116,7 +139,7 @@ export async function activateAllPendingKeysForDomain(domain: string): Promise<n
 export async function findRecoveryKeyDetailByDomain(domain: string): Promise<KeyDetailRow[]> {
   const sql = getSql();
   return sql`
-    SELECT prefix, status, created_at, last_used_at, last_verified_at, request_count
+    SELECT prefix, status, created_at, expires_at, last_used_at, last_verified_at, request_count
     FROM api_keys
     WHERE domain = ${domain} AND status != 'revoked'
     ORDER BY created_at DESC

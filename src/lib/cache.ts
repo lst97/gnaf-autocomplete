@@ -1,4 +1,4 @@
-import { type Config, getConfig } from "../config";
+import { env } from "../env";
 
 /**
  * Minimal O(1) LRU cache backed by Map insertion-order.
@@ -27,22 +27,18 @@ export class LruCache<K, V> {
       this.map.delete(key);
       return undefined;
     }
-    // Move to end (most recently used) by re-inserting
     this.map.delete(key);
     this.map.set(key, entry);
     return entry.value;
   }
 
   set(key: K, value: V): void {
-    // Evict stale entries only on set
     this.evictStale();
 
-    // If key already exists, delete first so re-insert moves to end
     if (this.map.has(key)) {
       this.map.delete(key);
     }
 
-    // Evict LRU if at capacity
     while (this.map.size >= this.maxSize) {
       const lruKey = this.map.keys().next();
       if (lruKey.done) break;
@@ -130,9 +126,8 @@ export function getSuggestCache(opts?: {
   ttlMs?: number;
 }): LruCache<string, CachedSuggestResponse> {
   if (!_cacheInstance) {
-    const cfg: Config = getConfig();
-    const maxSize = opts?.maxSize ?? cfg.SUGGEST_CACHE_MAX;
-    const ttlMs = opts?.ttlMs ?? cfg.SUGGEST_CACHE_TTL_MS;
+    const maxSize = opts?.maxSize ?? env.SUGGEST_CACHE_MAX;
+    const ttlMs = opts?.ttlMs ?? env.SUGGEST_CACHE_TTL_MS;
     _cacheInstance = new LruCache<string, CachedSuggestResponse>(maxSize, ttlMs);
   }
   return _cacheInstance;
