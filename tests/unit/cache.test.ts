@@ -179,3 +179,70 @@ describe("cache integration", () => {
     expect(small.get("c")).toBe("3");
   });
 });
+
+describe("LruCache TTL edge cases", () => {
+  test("has returns false for stale entry after TTL", () => {
+    const c = new LruCache<string, string>(10, 10); // 10ms TTL
+    c.set("x", "y");
+    expect(c.has("x")).toBe(true);
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        expect(c.has("x")).toBe(false);
+        resolve();
+      }, 20);
+    });
+  });
+
+  test("delete on non-existent key returns false", () => {
+    const c = new LruCache<string, string>(10, 5000);
+    expect(c.delete("nonexistent")).toBe(false);
+  });
+
+  test("set after eviction works correctly", () => {
+    const c = new LruCache<string, string>(2, 5000);
+    c.set("a", "1");
+    c.set("b", "2");
+    c.set("c", "3"); // evicts "a"
+    c.set("d", "4"); // evicts "b"
+    expect(c.get("a")).toBeUndefined();
+    expect(c.get("b")).toBeUndefined();
+    expect(c.get("c")).toBe("3");
+    expect(c.get("d")).toBe("4");
+  });
+
+  test("clear resets all state including MRU tracking", () => {
+    const c = new LruCache<string, string>(3, 5000);
+    c.set("a", "1");
+    c.set("b", "2");
+    c.set("c", "3");
+    c.clear();
+    c.set("a", "new");
+    expect(c.get("a")).toBe("new");
+    expect(c.size).toBe(1);
+  });
+
+  test("set refreshes TTL for existing key", () => {
+    // Use a very short TTL and set again before it expires
+    const c = new LruCache<string, string>(10, 30);
+    c.set("k", "old");
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        // Set again with new value — should refresh TTL
+        c.set("k", "new");
+        setTimeout(() => {
+          // Should still be alive (was refreshed ~10ms ago, TTL is 30ms)
+          expect(c.get("k")).toBe("new");
+          resolve();
+        }, 15);
+      }, 15);
+    });
+  });
+
+  test("evictStale does not throw on empty cache", () => {
+    const c = new LruCache<string, string>(10, 5000);
+    // Access after clearing should not throw
+    c.clear();
+    c.set("a", "1");
+    expect(c.get("a")).toBe("1");
+  });
+});

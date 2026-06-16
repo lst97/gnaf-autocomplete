@@ -12,36 +12,76 @@
     <h2>🧠 Query Tiers Explained</h2>
     <p class="card-lead">
       Every query is routed to the <strong>fastest index</strong> matching what
-      the user typed. Tiers were benchmarked with 1000 mixed queries
+      the user typed. Tiers were benchmarked with 100 requests per tier
       on <code>MacBook Pro M5 Pro (48GB)</code> ·
       <code>macOS 26.5.1</code> · <code>Bun 1.3.14</code> ·
-      <code>Postgres 18-bookworm (Docker)</code> · 16M addresses.
+      <code>Postgres 18-bookworm (Docker)</code> · 16.0M addresses.
     </p>
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Tier</th><th>Trigger</th><th>Avg latency</th><th>p95</th></tr>
+          <tr><th>Tier</th><th>Trigger</th><th>p50</th><th>p95</th><th>avg</th></tr>
         </thead>
         <tbody>
-          <tr><td><code>tier0</code></td><td>State + postcode (e.g. "VIC 3167")</td><td>~10ms</td><td>43ms</td></tr>
-          <tr><td><code>postcode</code></td><td>Purely numeric 2‑4 digit query</td><td>~16ms</td><td>27ms</td></tr>
-          <tr><td><code>tier0_number</code></td><td>State + street number (e.g. "1090 VIC")</td><td>~36ms</td><td>91ms</td></tr>
-          <tr><td><code>tier0_locality</code></td><td>State + locality prefix (e.g. "syd NSW")</td><td>~5ms</td><td>9ms</td></tr>
-          <tr><td><code>tier1</code></td><td>Street name prefix (<strong>now also 1-2 char streets</strong> like "y st", "pi st")</td><td><strong>~10ms</strong></td><td><strong>~31ms</strong></td></tr>
-          <tr><td><code>typo_corrected</code></td><td>Street/locality/state typo (in-memory corrector rewrites, then tier1) — <em>~10µs corrector + tier1 cost</em></td><td>~10ms</td><td>~31ms</td></tr>
-          <tr><td><code>tier4</code></td><td>Multi‑word GIN trigram fallback (rarely hit — <strong>most queries now route to tier1</strong>)</td><td>~40ms</td><td>~50ms</td></tr>
-          <tr><td><code>tier2</code></td><td>Single‑word GIN trigram fallback</td><td>~47ms</td><td>55ms</td></tr>
-          <tr><td class="text-blue"><code>↺ cache</code></td><td>In‑process LRU (repeated queries, <code>?no_cache=1</code> to bypass)</td><td>&lt;1ms</td><td>&lt;1ms</td></tr>
+          <tr><td><code>tier0_locality</code></td><td>State + locality prefix (e.g. "syd NSW")</td><td>4.4ms</td><td>7.6ms</td><td>4.4ms</td></tr>
+          <tr><td><code>tier1</code></td><td>Street name prefix (<strong>now also 1-2 char streets</strong> like "y st", "pi st")</td><td>8.2ms</td><td>10.5ms</td><td>8.1ms</td></tr>
+          <tr><td><code>tier0</code></td><td>State + postcode equality (e.g. "sydney nsw 2000")</td><td>9.8ms</td><td>23.1ms</td><td>12.4ms</td></tr>
+          <tr><td><code>postcode</code></td><td>Purely numeric 2‑4 digit query</td><td>14.4ms</td><td>23.4ms</td><td>15.0ms</td></tr>
+          <tr><td><code>tier4</code></td><td>Multi‑word GIN trigram fallback (rarely hit — <strong>most queries now route to tier1</strong>)</td><td>16.6ms</td><td>19.3ms</td><td>9.7ms</td></tr>
+          <tr><td><code>tier2</code></td><td>Single‑word GIN trigram fallback</td><td>6.8ms</td><td>17.8ms</td><td>6.8ms</td></tr>
+          <tr><td><code>tier0_number</code></td><td>State + street number (e.g. "1090 VIC")</td><td>30.7ms</td><td>68.6ms</td><td>27.9ms</td></tr>
+          <tr><td><code>typo_corrected</code></td><td>Street/locality/state typo (in-memory corrector rewrites, then tier1) — <em>~10µs corrector + tier1 cost</em></td><td>~8ms</td><td>~10ms</td><td>~8ms</td></tr>
+          <tr><td class="text-blue"><code>↺ cache</code></td><td>In‑process LRU (repeated queries, <code>?no_cache=1</code> to bypass)</td><td>&lt;1ms</td><td>&lt;1ms</td><td>&lt;1ms</td></tr>
         </tbody>
       </table>
     </div>
+
+    <details class="mt-3">
+      <summary><strong>📏 How the numbers above are measured</strong></summary>
+      <div class="tldr mt-2">
+        <strong>Two separate measurements — they answer different questions:</strong>
+        <div class="code-block" style="font-size:0.82rem;margin-top:var(--sp-1)">
+  server  took_ms   = time spent inside the route handler (DB query + JSON encode)
+  client  HTTP      = full round-trip the browser sees (send + server + receive)
+  benchmark         = end-to-end round-trip, 1000 mixed queries, ?no_cache=1
+        </div>
+        <ul style="margin-top:var(--sp-2)">
+          <li><strong>server <code>took_ms</code></strong> (in the response body): measured
+            from <code>performance.now()</code> at the start of the route handler
+            (<code>src/api/suggest.ts:66</code>) to the return. Excludes network and
+            middleware. Always present, integer ms.</li>
+          <li><strong>client HTTP</strong> (the meta line in the test UI): measured
+            around <code>await fetch()</code> in <code>pages/assets/suggest.js:106</code>.
+            <code>await fetch()</code> resolves when response headers are received —
+            it does <em>not</em> include <code>resp.json()</code> parse time.
+            Includes network round trip + server processing + headers-back.</li>
+          <li><strong>benchmark</strong> (<code>benchmark/bench.ts</code>): same
+            <code>performance.now()</code>-around-fetch pattern, but appends
+            <code>&amp;no_cache=1</code> so the in-process LRU is bypassed. 1000
+            iterations cycling 31 distinct query shapes, 7-tier mix.</li>
+        </ul>
+        <p>
+          <strong>Why the site can feel slower than the benchmark:</strong> the
+          benchmark uses <code>?no_cache=1</code>, so every request is a real
+          DB query (worst case). The test UI does <em>not</em> pass
+          <code>no_cache</code>, so the server-side LRU returns cached results
+          in &lt;1ms for repeated queries. The <em>first</em> click on a tier
+          button is the slow one (cache miss); subsequent clicks are &lt;1ms.
+          Slower queries like <code>tier0_number</code> (e.g. <code>"12 VIC"</code>,
+          p95 ≈ 69ms) are weighted by ~3% in the mixed benchmark, so they barely
+          move the headline p95 even though they take longer individually.
+        </p>
+      </div>
+    </details>
+
     <p class="card-lead mt-3">
-      <strong>Full workload benchmark</strong> (1000 mixed queries, 31 distinct query shapes):
-      <code>p50 9.2ms · p95 31.9ms · p99 51.7ms · avg 12.5ms · max 181.8ms</code>.
-      Numbers reflect <strong>cold-cache</strong> latency (<code>&amp;no_cache=1</code>).
+      <strong>Full workload benchmark</strong> (1000 mixed queries, 31 distinct query shapes, cold cache):
+      <code>p50 7.0ms · p95 26.4ms · p99 28.3ms · avg 9.6ms · max 34.0ms</code>.
       The tier1 prefix requirement was lowered to 1 char (was 3), so most queries
       including "y st"/"pi st" and short strings like "ab cd sydney" now hit the
       fast btree index instead of the slow GIN trigram index.
+      The address normalizer rejects 3+ consecutive number queries early,
+      preventing slow trigram fallback for random digit input.
       Repeated queries are &lt;1ms with the in-process LRU.
       Run <code>bun run benchmark/bench.ts</code> to reproduce.
     </p>
@@ -54,13 +94,35 @@
         </p>
         <div class="tier-rows">
           <div class="tier-row">
+            <span class="tier-badge t0b">tier0_locality</span>
+            <div class="tier-desc">
+              <strong>State + locality prefix</strong> — btree on <code>(state, locality_lc text_pattern_ops)</code>.
+              Fastest tier: triggers when the query has a state filter and the last token is alphabetic (≥2 chars)
+              and not a street type. The locality prefix is used as a LIKE filter, not just a boost.
+              E.g. <code>"syd nsw"</code> finds all localities starting with "syd" in NSW.
+              <span class="corrector-meta">p50: 4.4ms · p95: 7.6ms · Index: <code>idx_mv_tier0_state_locality</code></span>
+            </div>
+          </div>
+          <div class="tier-row">
+            <span class="tier-badge t1">tier1</span>
+            <div class="tier-desc">
+              <strong>Street name prefix</strong> — btree on <code>(street_lc text_pattern_ops, confidence_norm DESC)</code>.
+              The primary workhorse tier. Fires when the query has an alphabetic token ≥1 char
+              that looks like a street name (not a state or flat type). STREET_TYPE_LC names like
+              "avenue"/"close"/"lane" are accepted (some AU streets are named after street types).
+              The street number, flat number, locality, and street type are all used as
+              ORDER BY boosts (not filters) — the most specific boost wins the top slot.
+              <span class="corrector-meta">p50: 8.2ms · p95: 10.5ms · Index: <code>idx_mv_tier1_street_prefix</code></span>
+            </div>
+          </div>
+          <div class="tier-row">
             <span class="tier-badge t0">tier0</span>
             <div class="tier-desc">
               <strong>State + postcode equality</strong> — btree composite index on <code>(state, postcode)</code>.
-              Fastest tier: a single Index-Only Scan returns results in under 1ms.
               Only fires when the query has both a state filter <em>and</em> a postcode filter
               (e.g. <code>"sydney nsw 2000"</code> or <code>?state=NSW&amp;postcode=2000</code>).
-              <span class="corrector-meta">p50: 1.4ms · p95: 3.7ms · Index: <code>idx_mv_tier0_state_postcode</code></span>
+              Avoids redundant full-address lookups via the <code>hasFullAddress</code> gate.
+              <span class="corrector-meta">p50: 9.8ms · p95: 23.1ms · Index: <code>idx_mv_tier0_state_postcode</code></span>
             </div>
           </div>
           <div class="tier-row">
@@ -70,7 +132,29 @@
               Triggers when the entire query is a 2-4 digit numeric string (e.g. <code>"2000"</code> or <code>"20"</code>).
               For 4-digit exact postcodes uses equality (index Cond, no recheck).
               For shorter prefixes uses a LIKE range scan.
-              <span class="corrector-meta">p50: 0.3ms · p95: 1.1ms · Index: <code>idx_mv_postcode_prefix</code></span>
+              <span class="corrector-meta">p50: 14.4ms · p95: 23.4ms · Index: <code>idx_mv_postcode_prefix</code></span>
+            </div>
+          </div>
+          <div class="tier-row">
+            <span class="tier-badge t4">tier4</span>
+            <div class="tier-desc">
+              <strong>Multi-word GIN fallback</strong> — GIN trigram on <code>street_lc</code> and
+              <code>locality_lc</code> (individual columns, not the full address string).
+              Rarely fires — the tier1 prefix check accepts 1-char prefixes, plus non-alpha
+              prefixes like "a1"/"b1" now route to tier1 via the <code>/^[a-z]/</code> regex fix.
+              Address normalizer short-circuits 3+ consecutive number queries before they
+              reach this tier. Uses a <code>LIMIT 8000</code> subquery before
+              <code>DISTINCT ON (display)</code> to bound the sort cost.
+              <span class="corrector-meta">p50: 16.6ms · p95: 19.3ms · Indexes: <code>idx_mv_tier4_street_trgm</code> + <code>idx_mv_tier4_locality_trgm</code></span>
+            </div>
+          </div>
+          <div class="tier-row">
+            <span class="tier-badge t2">tier2</span>
+            <div class="tier-desc">
+              <strong>Single-word trigram fallback</strong> — GIN trigram on <code>search_text_expanded</code>.
+              For single-word queries with no matching street/locality prefix.
+              Most single-word queries are now caught by tier1 (any prefix ≥1 char).
+              <span class="corrector-meta">p50: 6.8ms · p95: 17.8ms · Index: <code>idx_mv_tier2_trgm</code></span>
             </div>
           </div>
           <div class="tier-row">
@@ -81,49 +165,7 @@
               (e.g. <code>"12 vic"</code> or <code>?state=VIC&amp;q=12+main+st"</code>).
               Skips full addresses (5+ tokens with a street name) — those need tier 1's
               per-street-number boost logic instead.
-              <span class="corrector-meta">p50: 0.4ms · p95: 1.7ms · Index: <code>idx_mv_tier0_number_first</code></span>
-            </div>
-          </div>
-          <div class="tier-row">
-            <span class="tier-badge t0b">tier0_locality</span>
-            <div class="tier-desc">
-              <strong>State + locality prefix</strong> — btree on <code>(state, locality_lc text_pattern_ops)</code>.
-              Triggers when the query has a state filter and the last token is alphabetic (≥2 chars)
-              and not a street type. The locality prefix is used as a LIKE filter, not just a boost.
-              E.g. <code>"syd nsw"</code> finds all localities starting with "syd" in NSW.
-              <span class="corrector-meta">p50: 3.0ms · p95: 6.1ms · Index: <code>idx_mv_tier0_state_locality</code></span>
-            </div>
-          </div>
-          <div class="tier-row">
-            <span class="tier-badge t1">tier1</span>
-            <div class="tier-desc">
-              <strong>Street name prefix</strong> — btree on <code>(street_lc text_pattern_ops, confidence_norm DESC)</code>.
-              The primary workhorse tier. Fires when the query has an alphabetic token ≥3 chars
-              that looks like a street name (not a state, flat type, or street type).
-              The street number, flat number, locality, and street type are all used as
-              ORDER BY boosts (not filters) — the most specific boost wins the top slot.
-              <span class="corrector-meta">p50: 13.8ms · p95: 15.8ms · Index: <code>idx_mv_tier1_street_prefix</code></span>
-            </div>
-          </div>
-          <div class="tier-row">
-            <span class="tier-badge t4">tier4</span>
-            <div class="tier-desc">
-              <strong>Multi-word GIN fallback</strong> — GIN trigram on <code>street_lc</code> and
-              <code>locality_lc</code> (individual columns, not the full address string).
-              Rarely fires — the tier1 prefix check was lowered to 1 char (was 3), so even
-              <code>"y st"</code> and <code>"pi st"</code> now hit the fast btree instead.
-              Uses a <code>LIMIT 8000</code> subquery before <code>DISTINCT ON (display)</code>
-              to bound the sort cost.
-              <span class="corrector-meta">p50: ~40ms · p95: ~50ms · Indexes: <code>idx_mv_tier4_street_trgm</code> + <code>idx_mv_tier4_locality_trgm</code></span>
-            </div>
-          </div>
-          <div class="tier-row">
-            <span class="tier-badge t2">tier2</span>
-            <div class="tier-desc">
-              <strong>Single-word trigram fallback</strong> — GIN trigram on <code>search_text_expanded</code>.
-              For single-word queries with no matching street/locality prefix.
-              Most single-word queries are now caught by tier1 (any prefix ≥1 char).
-              <span class="corrector-meta">p50: ~47ms · p95: ~55ms · Index: <code>idx_mv_tier2_trgm</code></span>
+              <span class="corrector-meta">p50: 30.7ms · p95: 68.6ms · Index: <code>idx_mv_tier0_number_first</code></span>
             </div>
           </div>
         </div>
@@ -367,60 +409,49 @@ street_type match → display LIKE 'unit %' → confidence DESC → display
   <div class="card">
     <h2>🧪 Test Suite &amp; Fixture</h2>
     <p class="card-lead">
-      A comprehensive test fixture was built from the raw G-NAF PSV files
-      (<code>scripts/build-fixture.ts</code>) — 10,000 addresses across all 9
-      states/territories, each with ~8 typo variants (80,303 total). The fixture
-      targets 110 edge case categories.
+      Tests use <code>bun:test</code> (NOT Jest, NOT Mocha). The fixture
+      (<code>tests/fixtures/addresses.json</code>) was built from the live
+      <code>address_search_mv</code> via <code>scripts/build-fixture.ts</code> —
+      1,000 edge-case-rich addresses across all 9 states/territories. The
+      fixture targets flat/unit, number-range, hyphen, state-correction,
+      corrector-target, and other G-NAF-specific patterns.
     </p>
     <div class="stat-grid">
       <div class="stat">
-        <div class="num">10K</div>
-        <div class="lbl">fixture addresses</div>
+        <div class="num">476</div>
+        <div class="lbl">total tests</div>
       </div>
       <div class="stat">
-        <div class="num">80K</div>
-        <div class="lbl">typo variants</div>
+        <div class="num">417</div>
+        <div class="lbl">unit tests</div>
       </div>
       <div class="stat">
-        <div class="num">110</div>
-        <div class="lbl">edge-case categories</div>
+        <div class="num">59</div>
+        <div class="lbl">integration tests</div>
+      </div>
+      <div class="stat">
+        <div class="num">1,015</div>
+        <div class="lbl">expect() calls</div>
       </div>
       <div class="stat">
         <div class="num">9</div>
-        <div class="lbl">states covered</div>
-      </div>
-      <div class="stat">
-        <div class="num">509</div>
-        <div class="lbl">fixture-driven tests</div>
+        <div class="lbl">states in fixture</div>
       </div>
       <div class="stat">
         <div class="num">0</div>
-        <div class="lbl">test failures</div>
+        <div class="lbl">failures</div>
       </div>
     </div>
-    <div class="table-wrap mt-3">
-      <table>
-        <thead>
-          <tr><th>Category</th><th>Count</th><th>Examples</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>flat/unit</code></td><td>5,981</td><td>Unit 1, Apt 5, Shop 4, Suite 7</td></tr>
-          <tr><td><code>lot_number</code></td><td>1,721</td><td>Lot 1, Lot 2 (rural addresses)</td></tr>
-          <tr><td><code>number_range</code></td><td>616</td><td>6-14, 100-110, 20-30</td></tr>
-          <tr><td><code>number_suffix</code></td><td>659</td><td>1A, 2B, 3/4</td></tr>
-          <tr><td><code>building_name</code></td><td>385</td><td>Collins Tower, Rialto</td></tr>
-          <tr><td><code>alias</code></td><td>432</td><td>Principal + alias addresses</td></tr>
-          <tr><td><code>level/floor</code></td><td>197</td><td>Level 6, Level B, Level G</td></tr>
-        </tbody>
-      </table>
-    </div>
     <p class="card-lead mt-3">
-      <strong>Typo variant categories</strong> — each address includes ~8 variants
-      covering exact, short, street-name typo, street-type typo, locality typo,
-      state-code typo, postcode-only, flat/level prefix, and off-by-one flat
-      number errors. The fixture is at <code>tests/fixtures/addresses.json</code>
-      (17 MB) and the test runner is at <code>tests/fixture/autocomplete.test.ts</code>
-      (509 tests, 31K expect calls, 0 failures).
+      <strong>Test categories:</strong> unit tests import source functions
+      directly (<code>routeQuery</code>, <code>tokenizeQuery</code>,
+      <code>computeScore</code>, etc.) with no DB mocking — they assert on
+      router tier decisions, tokenizer output, score values, error classes,
+      and LRU cache semantics. Integration tests hit the live API at
+      <code>API_URL</code> and skip if <code>/healthz</code> is down. The
+      fixture loader validates that the JSON file loads, has the expected
+      record count, and contains the corrector target patterns.
+      <code>bun run test:unit</code> · <code>bun run test:integration</code>
     </p>
   </div>
 
@@ -538,7 +569,7 @@ street_type match → display LIKE 'unit %' → confidence DESC → display
         </p>
         <div class="pc-section-label pros">PROS</div>
         <ul class="pros-cons pro">
-          <li>Sub-50ms p95 — measured 31.9ms p95 across 1000 mixed queries (cold cache)</li>
+          <li>Sub-50ms p95 — measured 26.4ms p95 across 1000 mixed queries (cold cache)</li>
           <li>Pre-computed <code>display</code> string — no runtime formatting</li>
           <li>Pre-computed <code>search_text_expanded</code> with abbreviation expansion</li>
           <li>10 indexes picked for specific query shapes (state+postcode, number+state, locality+state, street prefix, trigram, FTS, street/locality GIN)</li>
@@ -577,7 +608,7 @@ street_type match → display LIKE 'unit %' → confidence DESC → display
           <tr><td>Display formatting</td><td class="text-yellow">client-side</td><td class="text-green">pre-computed column</td></tr>
           <tr><td>Typo tolerance</td><td class="text-yellow">no</td><td class="text-green">yes (trigram)</td></tr>
           <tr><td>Abbrev matching</td><td class="text-yellow">no</td><td class="text-green">yes (expand_address_abbrevs)</td></tr>
-          <tr><td>Typical p95</td><td class="text-yellow">seconds</td><td class="text-green">31.9 ms (cold cache)</td></tr>
+          <tr><td>Typical p95</td><td class="text-yellow">seconds</td><td class="text-green">26.4 ms (cold cache)</td></tr>
           <tr><td>Cache layer</td><td class="text-yellow">none</td><td class="text-green">in-process LRU</td></tr>
           <tr><td>Data freshness</td><td class="text-yellow">always live</td><td class="text-green">snapshot, refresh weekly</td></tr>
           <tr><td>Portability</td><td class="text-yellow">any RDBMS</td><td class="text-green">Postgres only</td></tr>

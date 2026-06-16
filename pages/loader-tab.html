@@ -341,28 +341,38 @@
                     <td>
                         <strong>MV indexes (parallel build)</strong><br />
                         <span class="text-muted" style="font-size: 0.82rem">
-                            Recreate all 8 MV indexes in parallel using 6
-                            database connections. 4 btree (covering: tier0
-                            state+postcode, tier0 state+number, tier0
-                            state+locality, tier1 street+prefix) and 2 GIN
-                            trigram (tier2/tier4,
+                            The MV has 10 indexes total: the
+                            <code>UNIQUE</code> index is kept throughout REFRESH
+                            (required for <code>CONCURRENTLY</code>), 2 GIN
+                            trigram indexes (<code>tier4_street</code> +
+                            <code>tier4_locality</code>) are kept in place
+                            (smaller, faster REFRESH), and the remaining 7 are
+                            dropped before REFRESH and recreated in parallel
+                            via 4 batches on 6 connections. 4 btree covering
+                            (tier0 state+postcode, tier0 state+number, tier0
+                            state+locality, tier1 street+prefix), 1 GIN
+                            trigram (tier2), 1 GIN tsvector (tier3), 1 btree
+                            prefix (postcode). GIN trigram indexes use
                             <code>fastupdate=off</code> for 20‑30% faster
-                            reads). The GIN trigram at ~2.5GB is the largest.
-                            Parallel builds via 6 conns complete in 99s vs
-                            ~200s serial.
+                            reads. Parallel builds via 6 conns complete in 99s
+                            vs ~200s serial.
                         </span>
                         <span
                             class="corrector-meta"
                             style="margin-top: var(--sp-1); display: block"
                         >
+                            <strong>Dropped + recreated (7):</strong>
                             <code>idx_mv_tier0_state_postcode</code> ·
                             <code>idx_mv_tier0_number_first</code> ·
                             <code>idx_mv_tier0_state_locality</code> ·
                             <code>idx_mv_tier1_street_prefix</code> ·
                             <code>idx_mv_tier2_trgm</code> ·
                             <code>idx_mv_tier3_fts</code> ·
-                            <code>idx_mv_postcode_prefix</code> ·
-                            <code>idx_mv_address_detail_pid</code>
+                            <code>idx_mv_postcode_prefix</code><br />
+                            <strong>Kept throughout (3):</strong>
+                            <code>idx_mv_address_detail_pid</code> (UNIQUE) ·
+                            <code>idx_mv_tier4_street_trgm</code> ·
+                            <code>idx_mv_tier4_locality_trgm</code>
                         </span>
                     </td>
                             <td class="text-mono">99s</td>
@@ -551,10 +561,11 @@
     <p class="card-lead">
         The loader is designed to keep peak container memory under 1GB during
         the COPY phase. <code>COPY FROM STDIN</code> (via the
-        <code>postgres</code>
-        package) streams data directly from file to heap without buffering in
-        <code>shared_buffers</code> — peak ~900MB for 9 concurrent workers. The
-        MV and its indexes occupy ~27.5GB of disk after the load.
+        <code>postgres</code> package) streams data directly from file to heap
+        without buffering in <code>shared_buffers</code> — peak ~900MB for 9
+        concurrent workers. The MV (3.3GB heap) and its 10 indexes (12GB) occupy
+        ~16GB on disk, plus ~5GB for WAL and ~5GB for the G-NAF PSV files =
+        ~27GB total volume. Measured live on the deployed container.
     </p>
     <div class="table-wrap">
         <table>
@@ -592,8 +603,8 @@
                     <td style="text-align: right">~15 GB</td>
                 </tr>
                 <tr>
-                    <td>Steady state (post-load)</td>
-                    <td style="text-align: right">~15 GB</td>
+                    <td>Steady state (post-load, with indexes in shared_buffers)</td>
+                    <td style="text-align: right">~8 GB</td>
                     <td style="text-align: right">~16 GB host</td>
                 </tr>
             </tbody>
@@ -601,11 +612,11 @@
     </div>
     <div class="stat-grid stat-grid-4 mt-3">
         <div class="stat">
-            <div class="num" style="font-size: var(--fs-lg)">~20 GB</div>
-            <div class="lbl">disk (MV + indexes)</div>
+            <div class="num" style="font-size: var(--fs-lg)">~16 GB</div>
+            <div class="lbl">MV + indexes (disk)</div>
         </div>
         <div class="stat">
-            <div class="num" style="font-size: var(--fs-lg)">~12.5 GB</div>
+            <div class="num" style="font-size: var(--fs-lg)">~12 GB</div>
             <div class="lbl">indexes on MV</div>
         </div>
         <div class="stat">
@@ -667,7 +678,7 @@
                 >
                     <td><code>address_search_mv</code></td>
                     <td style="text-align: right">16,025,964</td>
-                    <td>Single read target, ~15GB + ~12.5GB indexes</td>
+                    <td>Single read target, 3.3GB heap + 12GB indexes (~15GB total)</td>
                 </tr>
             </tbody>
         </table>
@@ -763,17 +774,34 @@
     <div class="tldr">
         <strong>G‑NAF is published ~4×/year</strong> (Feb, May, Aug, Nov). Each
         refresh requires a full reload — the staging tables are TRUNCATE&#39;d
-        and re‑populated from the new PSV files.
+        and re‑populated from the new PSV files. The loader is
+        <strong>idempotent</strong>: it checks
+        <code>pg_matviews.ispopulated</code> and
+        <code>information_schema.tables</code> to skip schema setup if already
+        applied, so a regular refresh is just <em>point the loader at new PSVs
+        and re-run</em>.
     </div>
     <div class="code-block" style="font-size: 0.82rem; line-height: 1.7">
-        # 1. Download the new G‑NAF release from data.gov.au # 2. Update
-        GNAF_DATA_DIR to point at new PSV files export
-        GNAF_DATA_DIR=/path/to/G‑NAF\ MAY\ 2026/Standard # 3. Reset the DB
-        (deletes all data) docker compose down -v && docker compose up -d db #
-        4. Run the loader (~10 min for 16M rows) docker compose run --rm api bun
-        run scripts/load.ts # 5. Restart the API docker compose restart api # 6.
-        Warm the cache curl -X POST http://localhost:8000/warmup # 7. Verify bun
-        run benchmark/bench.ts
+        <div># 1. Download the new G‑NAF release from data.gov.au</div>
+        <div># 2. Point GNAF_DATA_DIR at the new PSV files</div>
+        <div>export GNAF_DATA_DIR=/path/to/G-NAF\ MAY\ 2026/Standard</div>
+        <div></div>
+        <div># 3. Run the loader (~10 min for 16M rows).</div>
+        <div>#    Schema is skipped (tables exist), staging is TRUNCATEd,</div>
+        <div>#    workers re-COPY, MV REFRESHes, indexes rebuild.</div>
+        <div>docker compose run --rm api bun run scripts/load.ts</div>
+        <div></div>
+        <div># 4. Restart the API</div>
+        <div>docker compose restart api</div>
+        <div></div>
+        <div># 5. Warm the cache</div>
+        <div>curl -X POST http://localhost:8000/warmup</div>
+        <div></div>
+        <div># 6. Verify</div>
+        <div>bun run benchmark/bench.ts</div>
+        <div></div>
+        <div># Only needed for schema changes or first deploy:</div>
+        <div>docker compose down -v &amp;&amp; docker compose up -d db</div>
     </div>
 </div>
 
@@ -781,52 +809,54 @@
     <h2>📊 Benchmark</h2>
     <p class="card-lead">
         Full workload benchmark: 1000 mixed queries (31 distinct shapes) against
-        the freshly‑loaded API. Results reflect <strong>cold‑cache</strong>
-        latency (<code>&amp;no_cache=1</code>). Repeated queries are &lt;1ms
-        with the in‑process LRU.
+        the freshly‑loaded API. <strong>Warm cache</strong> uses the in‑process
+        LRU (30s TTL, 1000 entries) — repeated queries hit the cache and return
+        in &lt;1ms. <strong>Cold cache</strong> appends <code>&amp;no_cache=1</code>
+        so every request is a real DB query. The target is p95 &lt; 50ms.
     </p>
     <div class="table-wrap">
         <table>
             <thead>
                 <tr>
                     <th>Metric</th>
-                    <th style="text-align: right">Warm cache</th>
-                    <th style="text-align: right">Cold cache</th>
+                    <th style="text-align: right">Warm cache (LRU)</th>
+                    <th style="text-align: right">Cold cache (no_cache=1)</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>p50</td>
-                    <td style="text-align: right">6.2ms</td>
-                    <td style="text-align: right">57.3ms</td>
+                    <td style="text-align: right">0.4ms</td>
+                    <td style="text-align: right">7.5ms</td>
                 </tr>
                 <tr>
                     <td>p95</td>
-                    <td style="text-align: right">44.3ms</td>
-                    <td style="text-align: right">76.5ms</td>
+                    <td style="text-align: right">2.0ms</td>
+                    <td style="text-align: right">27.5ms</td>
                 </tr>
                 <tr>
                     <td>p99</td>
-                    <td style="text-align: right">52.1ms</td>
-                    <td style="text-align: right">94.6ms</td>
+                    <td style="text-align: right">12.3ms</td>
+                    <td style="text-align: right">29.8ms</td>
                 </tr>
                 <tr>
                     <td>avg</td>
-                    <td style="text-align: right">13.9ms</td>
-                    <td style="text-align: right">60.7ms</td>
+                    <td style="text-align: right">0.8ms</td>
+                    <td style="text-align: right">9.9ms</td>
                 </tr>
                 <tr>
                     <td>max</td>
-                    <td style="text-align: right">477.8ms</td>
-                    <td style="text-align: right">364.3ms</td>
+                    <td style="text-align: right">30.7ms</td>
+                    <td style="text-align: right">32.0ms</td>
                 </tr>
             </tbody>
         </table>
     </div>
     <p class="card-lead mt-3">
-        <strong>Target:</strong> p95 &lt;50ms with warm cache.
-        <strong>Status:</strong> 🟡 Cold cache p95 76.5ms (first 20‑30 queries
-        after fresh load). Run <code>bun run benchmark/bench.ts</code> to
-        reproduce.
+        <strong>Target:</strong> p95 &lt; 50ms. <strong>Status:</strong> ✅ PASS
+        — both warm (p95 2.0ms) and cold (p95 27.5ms) are well under 50ms.
+        The warm p99 outlier (12.3ms) is from the first request for each unique
+        query (LRU miss); subsequent repeats return in &lt;1ms.
+        Run <code>bun run benchmark/bench.ts</code> to reproduce.
     </p>
 </div>

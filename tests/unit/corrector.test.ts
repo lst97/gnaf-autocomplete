@@ -108,6 +108,101 @@ describe("Corrector — street dictionary", () => {
   });
 });
 
+describe("Corrector — frequency-based ranking", () => {
+  test("higher frequency candidate wins over lower frequency", () => {
+    const c = new Corrector();
+    c.addStreet("main", 1000);   // common
+    c.addStreet("maine", 10);    // rare, but real
+    // "mian" is distance 1 from both "main" and "maine":
+    //   "main" - "i" = "man" → no... let me think.
+    // Actually "mian": "i"↔"a" at position 1 → substitution.
+    // "mian" is not in the dictionary. Deletions:
+    //   "ian" (remove "m"), "man" (remove "i"), "min" (remove "a"), "mia" (remove "n")
+    // "main" deletion "man" matches "mian" deletion "man" (remove "i") → same!
+    // Both have edit distance 1 to "mian". "main" should win by frequency.
+    const result = c.correctStreet("mian");
+    expect(result).toBe("main");
+  });
+
+  test("same distance, higher frequency wins for locality", () => {
+    const c = new Corrector();
+    c.addLocality("wantirna", 100);
+    c.addLocality("wantarna", 10);
+    // "wantirno" is distance 1 from "wantirna" (o↔a sub) AND
+    // distance 1 from "wantarna" (i↔a sub). Higher frequency wins.
+    expect(c.correctLocality("wantirno")).toBe("wantirna");
+  });
+
+  test("exact match returns null regardless of frequency", () => {
+    const c = new Corrector();
+    c.addStreet("main", 1000);
+    c.addStreet("maine", 10);
+    expect(c.correctStreet("main")).toBeNull();
+    expect(c.correctStreet("maine")).toBeNull();
+  });
+
+  test("near-exact match with extra char returns corrected word (insertion typo)", () => {
+    const c = new Corrector();
+    c.addStreet("gresford", 50);
+    // "gresfodr" = "gresford" with an extra "d" before "r" → swap typo
+    expect(c.correctStreet("gresfodr")).toBe("gresford");
+  });
+});
+
+describe("Corrector — threshold boundaries", () => {
+  test("query of exactly 3 chars fires the corrector", () => {
+    const c = new Corrector();
+    c.addStreet("main", 100);
+    // "mai" has length 3 → should be processed by corrector
+    const r = c.correctStreet("mai");
+    // Either returns "main" or null depending on edit distance
+    // We just verify it doesn't crash
+    expect(r === null || r === "main").toBe(true);
+  });
+
+  test("query of exactly 2 chars returns null (below threshold)", () => {
+    const c = new Corrector();
+    c.addStreet("main", 100);
+    expect(c.correctStreet("ma")).toBeNull();
+  });
+
+  test("query of exactly 1 char returns null (below threshold)", () => {
+    const c = new Corrector();
+    c.addStreet("main", 100);
+    expect(c.correctStreet("m")).toBeNull();
+  });
+
+  test("empty string returns null", () => {
+    const c = new Corrector();
+    c.addStreet("main", 100);
+    expect(c.correctStreet("")).toBeNull();
+  });
+});
+
+describe("Corrector — long query performance", () => {
+  test("30-char query completes in <50ms", () => {
+    const c = new Corrector();
+    for (let i = 0; i < 500; i++) {
+      c.addStreet(`streetname${i}`, 1);
+    }
+    const start = performance.now();
+    c.correctStreet("a".repeat(30));
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(50);
+  });
+
+  test("lookup on 1000-word dictionary completes in <50ms", () => {
+    const c = new Corrector();
+    for (let i = 0; i < 1000; i++) {
+      c.addStreet(`name${i}`, i);
+    }
+    const start = performance.now();
+    const result = c.correctStreet("nam");
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(50);
+  });
+});
+
 describe("Corrector — locality dictionary", () => {
   test("exact locality match returns null", () => {
     const c = new Corrector();

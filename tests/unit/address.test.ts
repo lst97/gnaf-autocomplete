@@ -35,10 +35,10 @@ describe("routeQuery — postcode numeric only", () => {
 });
 
 describe("routeQuery — multi-word falls to tier2", () => {
-  test("multi-word with short prefix <3 chars goes to tier4 (multi-word fuzzy)", async () => {
-    // 'ab' is 2 chars — too short for tier1 street prefix. Falls through to tier4.
+  test("multi-word with short prefix <3 chars goes to tier1 (prefix threshold lowered to ≥1)", async () => {
+    // 'ab' is 2 chars — prefix threshold is now ≥1, so tier1 runs.
     const r = await routeQuery("ab cd sydney", null, null, 10);
-    expect(r.tier).toBe("tier4");
+    expect(r.tier).toBe("tier1");
   });
 
   test("single-word goes to tier1 (street prefix) since 'sydne' is a valid prefix", async () => {
@@ -48,9 +48,9 @@ describe("routeQuery — multi-word falls to tier2", () => {
     expect(r.tier).toBe("tier1");
   });
 
-  test("single char no state goes to tier2", async () => {
+  test("single char no state goes to tier1 (prefix threshold ≥1)", async () => {
     const r = await routeQuery("s", null, null, 10);
-    expect(r.tier).toBe("tier2");
+    expect(r.tier).toBe("tier1");
   });
 
   test("single word goes to tier1 if alphabetic", async () => {

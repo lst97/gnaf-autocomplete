@@ -28,7 +28,9 @@ This policy covers all components of the G-NAF Address Autocomplete service:
 - The HTTP API (Elysia/Bun routes in `src/api/`)
 - The PostgreSQL query router and SQL layer (`src/db/`, `src/sql/`)
 - The G-NAF data loader (`scripts/`)
-- API key generation, storage, and authentication (`src/api/keys*.ts`, `src/api/auth.ts`)
+- API key generation, storage, authentication, expiry (90-day sliding window), and revocation (`src/api/keys*.ts`, `src/api/auth.ts`, `src/lib/key-hash.ts`, `src/lib/touch-key.ts`)
+- Authenticated key revocation via `X-API-Key` header with domain-authority checks and last-key guard
+- DNS-authenticated bulk key revocation via `/api/keys/recover/revoke` (DNS proof of domain ownership)
 - The static admin UI (`pages/`)
 
 ### Out of scope

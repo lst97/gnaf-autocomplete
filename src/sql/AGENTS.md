@@ -14,7 +14,7 @@ This prevents writing raw SQL inline in API route handlers.
 | `auth.ts` | API key lookup, rate-limit window updates, request counting |
 | `corrector.ts` | Street/locality dictionary loading for the typo corrector |
 | `health.ts` | MV populated check for readiness probe |
-| `keys.ts` | All key-related operations: create, find, revoke, verify, activate |
+| `keys.ts` | All key-related operations: create, find, revoke, verify, activate, dns-verify |
 | `stats.ts` | Aggregated usage statistics for the analytics dashboard |
 | `warmup.ts` | Prewarm query definitions (targets each index tier) — `WARMUP_TASKS` array |
 
@@ -38,9 +38,11 @@ This prevents writing raw SQL inline in API route handlers.
 ## ANTI-PATTERNS
 - **NEVER** import sql modules from other sql modules — keeps dependency graph flat
 - **NEVER** put business logic in sql modules — they are thin wrappers
+- **NEVER** write raw SQL inline in route handlers
 
 ## GOTCHAS
 - `fetchStreetNames()` and `fetchLocalities()` in `corrector.ts` return `{ name, n }` (not `street_name`/`locality_name`)
 - `countDomainKeys()` returns a bare number (not a row object)
 - The generic key row type `KeyRow` is duplicated from the DB schema
 - `warmup.ts` is purely declarative (no async functions) — exports `WARMUP_TASKS` array for the warmup route handler
+- 7 warmup tasks by default — one per hot index tier (state+postcode, state+number, state+locality, street+prefix, postcode prefix, 2 GIN trigrams); skips `idx_mv_tier3_fts` (vestigial)

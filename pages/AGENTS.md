@@ -15,15 +15,15 @@ that shares the same CSS design system.
 | `suggest-tab.html` | `/suggest-tab.html` | Suggest panel (live autocomplete + advanced search + tier examples) |
 | `detail-tab.html` | `/detail-tab.html` | Address Detail panel (PID lookup) |
 | `keys-tab.html` | `/keys-tab.html` | API Keys panel (generate, manage, DNS recovery) |
-| `guide-tab.html` | `/guide-tab.html` | Getting Started Guide (authentication, endpoints, config) |
-| `loader-tab.html` | `/loader-tab.html` | Loader panel (phase timings, state progress, row counts, SQL debug) |
-| `system-tab.html` | `/system-tab.html` | System panel (health checks, query tiers, code reference, schema comparison) |
+| `guide-tab.html` | `/guide-tab.html` | Getting Started Guide (authentication, endpoints, config, scoring, error codes) |
+| `loader-tab.html` | `/loader-tab.html` | Loader panel (phase timings, state progress, row counts, benchmark) |
+| `system-tab.html` | `/system-tab.html` | System panel (health checks, query tiers, code reference, schema comparison, measurement methodology) |
 | `analytics.html` | `/analytics` | Standalone public analytics dashboard |
 | `style.css` | `/style.css` | Solarized Light design system via CSS custom properties |
-| `assets/common.js` | `/assets/common.js` | Shared: tab switching, esc()/escAttr(), lazy-load fetch, API base detection |
-| `assets/suggest.js` | `/assets/suggest.js` | Suggest: doSuggest(), autocomplete dropdown, tier buttons |
-| `assets/detail.js` | `/assets/detail.js` | Detail: doDetail() address lookup |
-| `assets/system.js` | `/assets/system.js` | System: sysFetch() for healthz/readyz/warmup |
+| `assets/common.js` | `/assets/common.js` | Shared: tab switching, esc()/escAttr(), lazy-load fetch, API base detection, `apiFetch()` (with `cache: "no-store"`) |
+| `assets/suggest.js` | `/assets/suggest.js` | Suggest: `doSuggest()`, autocomplete dropdown, tier buttons, `_suggestInitialized` guard |
+| `assets/detail.js` | `/assets/detail.js` | Detail: `doDetail()` address lookup |
+| `assets/system.js` | `/assets/system.js` | System: `sysFetch()` for healthz/readyz/warmup |
 | `assets/keys.js` | `/assets/keys.js` | Keys: key generation, Turnstile, key management, DNS recovery |
 
 ## WHERE TO LOOK
@@ -47,6 +47,8 @@ that shares the same CSS design system.
 - **Result limit**: 15 results per autocomplete dropdown (`&limit=15`)
 - **Lazy-load**: Tab content fetched once on first click, cached in `tabCache`, no re-fetch
 - **Script loading order**: `common.js` first (shared utilities), then tab-specific modules
+- **HTTP cache bypass**: `apiFetch()` in `assets/common.js` passes `cache: "no-store"` to every fetch so the server-side LRU can serve `cache_status: "hit"` on repeated clicks (the server sets `Cache-Control: public, max-age=30` for CDNs, but the browser must NOT use its own HTTP cache)
+- **Init guard**: `initSuggest()` uses `_suggestInitialized` flag — called from both `DOMContentLoaded` and `tab-loaded`, but only the first call adds event listeners (prevents double-fire on tier button clicks)
 
 ## ANTI-PATTERNS
 - **NEVER** inject user data without `esc()` / `escAttr()` — XSS risk
@@ -54,6 +56,8 @@ that shares the same CSS design system.
 - **NEVER** use `innerHTML` with user data unescaped
 - **NEVER** rely on a framework (React/Vue/etc.) — keep it vanilla
 - **NEVER** commit hardcoded tier labels in buttons without verifying with `verify-tiers.ts`
+- **NEVER** double-initialize `initSuggest()` — was a real bug; the `_suggestInitialized` guard prevents duplicate event listeners that would cause 2 simultaneous requests per tier button click
+- **NEVER** rely on the browser's HTTP cache for `/suggest` responses — `apiFetch()` always passes `cache: "no-store"` so the server-side LRU's `cache_status: "hit"` shows up correctly in the meta line
 
 ## GOTCHAS
 - `tier` field in response drives the yellow color in `.meta-line .tier` class
@@ -69,3 +73,5 @@ that shares the same CSS design system.
 - Tab-specific JS initializes via `tab-loaded` custom event dispatched after content injection
 - The old monolithic `main.js` was split into 5 domain modules in `assets/`
 - Tab navigation via `?tab=xxx` URL param is preserved
+- The `doSuggest()` meta line shows `server: Xms` (from response body's `took_ms`) and `HTTP: Yms` (from `performance.now()` around `await fetch()`); `server` should always be ≤ `HTTP` for the same response — if it's not, click any tier button to refresh (stale meta)
+- The suggest `Measurement methodology` section in `system-tab.html` documents the 3 distinct measurements (server `took_ms`, client HTTP, benchmark) — read it before making claims about performance

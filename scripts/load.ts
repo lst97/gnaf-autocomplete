@@ -21,7 +21,7 @@ import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { SQL } from "bun";
-import { getConfig } from "../src/config";
+import { env } from "../src/env";
 import { logger } from "../src/lib/logger";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -73,10 +73,9 @@ async function buildWorkerList(_dataDir: string): Promise<WorkerSpec[]> {
 }
 
 async function main() {
-  const config = getConfig();
   // Single connection for the orchestrator — it's a sequential driver.
-  const sql = new SQL(config.DATABASE_URL, { max: 1, min: 1 });
-  const dataDir = config.GNAF_DATA_DIR;
+  const sql = new SQL(env.DATABASE_URL, { max: 1, min: 1 });
+  const dataDir = env.GNAF_DATA_DIR;
   const sqlDir = join(__dirname, "..", "sql");
 
   logger.info({ dataDir }, "Starting G-NAF loader (orchestrator)");
@@ -280,7 +279,7 @@ async function main() {
   //   Tier 2 queries (avoids linear scan of pending list entries).
   logger.info("Recreating MV indexes in parallel (6 connections)...");
   const recreateIdxStart = performance.now();
-  const indexPool = new SQL(config.DATABASE_URL, { max: 6 });
+  const indexPool = new SQL(env.DATABASE_URL, { max: 6 });
   const indexBatches: string[][] = [
     [
       `CREATE INDEX IF NOT EXISTS idx_mv_tier0_state_postcode ON address_search_mv (state, postcode) INCLUDE (address_detail_pid, display, lat, lon, confidence_norm)`,

@@ -1,20 +1,107 @@
 // G-NAF Address Autocomplete — Suggest Panel Logic
 // =============================================================
 
+// Stored results for frontend pagination
+let _suggestAllResults = [];
+let _suggestMetaData = {};
+
+function renderSuggestPage() {
+  const off = parseInt(document.getElementById('soff').value) || 0;
+  const page = _suggestAllResults.slice(off, off + PAGE_SIZE);
+  const total = _suggestAllResults.length;
+
+  const tbody = document.querySelector('#suggestTable tbody');
+  tbody.innerHTML = '';
+
+  const meta = document.getElementById('suggestMeta');
+  meta.innerHTML =
+    `<span class="tier">${_suggestMetaData.tier || '-'}</span>` +
+    (_suggestMetaData.cacheHit ? ` <span class="badge badge-info" title="Served from in-process LRU cache">↺ cache</span>` : '') +
+    ` &middot; <span class="count">${total}</span> results &middot; ` +
+    `server: <span class="ms">${_suggestMetaData.took_ms}ms</span> &middot; ` +
+    `HTTP: ${_suggestMetaData.httpMs}ms`;
+
+  page.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="lookup-link" title="Click to look up">${r.id}</td>
+      <td>${esc(r.display)}</td>
+      <td>${esc(r.locality)}</td>
+      <td>${esc(r.state)}</td>
+      <td>${esc(r.postcode)}</td>
+      <td>${r.score != null ? r.score.toFixed(4) : '<span class="null">-</span>'}</td>
+      <td>${r.lat != null ? r.lat : '<span class="null">-</span>'}</td>
+      <td>${r.lon != null ? r.lon : '<span class="null">-</span>'}</td>`;
+    tr.querySelector('td').addEventListener('click', () => {
+      const pid = r.id;
+      document.querySelector('[data-tab="detail"]').click();
+      const panel = document.getElementById('panel-detail');
+      if (panel?.dataset.loaded) {
+        const pidEl = document.getElementById('pid');
+        if (pidEl) { pidEl.value = pid; doDetail(); }
+      } else {
+        const onLoaded = (e) => {
+          if (e.detail.tab === 'detail') {
+            document.removeEventListener('tab-loaded', onLoaded);
+            const pidEl = document.getElementById('pid');
+            if (pidEl) { pidEl.value = pid; doDetail(); }
+          }
+        };
+        document.addEventListener('tab-loaded', onLoaded);
+      }
+    });
+    tbody.appendChild(tr);
+  });
+
+  // Update pagination controls
+  const pag = document.getElementById('suggestPagination');
+  const pageInfo = document.getElementById('suggestPageInfo');
+  if (pag && pageInfo) {
+    const pageStart = off + 1;
+    const pageEnd = Math.min(off + PAGE_SIZE, total);
+    const hasPrev = off > 0;
+    const hasNext = pageEnd < total;
+    pageInfo.textContent = `${pageStart}–${pageEnd} of ${total}`;
+    const prevBtn = pag.querySelector('.pagi-prev');
+    const nextBtn = pag.querySelector('.pagi-next');
+    if (prevBtn) prevBtn.disabled = !hasPrev;
+    if (nextBtn) nextBtn.disabled = !hasNext;
+    pag.style.display = total > PAGE_SIZE ? 'flex' : 'none';
+    // Wire buttons (replace to drop old listeners)
+    const np = prevBtn.cloneNode(true);
+    const nn = nextBtn.cloneNode(true);
+    prevBtn.replaceWith(np);
+    nextBtn.replaceWith(nn);
+    np.addEventListener('click', () => {
+      document.getElementById('soff').value = Math.max(0, off - PAGE_SIZE);
+      renderSuggestPage();
+    });
+    nn.addEventListener('click', () => {
+      document.getElementById('soff').value = off + PAGE_SIZE;
+      renderSuggestPage();
+    });
+  }
+}
+
 // =============================================================
 // Suggest (advanced search)
 // =============================================================
+const PAGE_SIZE = 15;
+
 async function doSuggest() {
   const q = document.getElementById('sq').value.trim();
   if (q.length < 2) { alert('Query must be at least 2 chars'); return; }
   const state = document.getElementById('sstate').value;
   const postcode = document.getElementById('spc').value.trim();
   const limit = parseInt(document.getElementById('slim').value) || 10;
-  const offset = parseInt(document.getElementById('soff').value) || 0;
 
-  const params = new URLSearchParams({ q, limit: String(limit), offset: String(offset) });
+  const params = new URLSearchParams({ q, limit: String(limit), offset: '0' });
   if (state) params.set('state', state);
   if (postcode) params.set('postcode', postcode);
+
+  const btn = document.getElementById('suggestBtn');
+  btn.classList.add('is-loading');
+  btn.disabled = true;
 
   const t0 = performance.now();
   let resp;
@@ -22,67 +109,51 @@ async function doSuggest() {
     resp = await apiFetch(`${API}/suggest?${params}`);
   } catch (e) {
     document.getElementById('suggestMeta').textContent = 'Network error — is the API running?';
+    btn.classList.remove('is-loading');
+    btn.disabled = false;
     return;
   }
   const t1 = performance.now();
   const httpMs = (t1 - t0).toFixed(1);
 
-  const tbody = document.querySelector('#suggestTable tbody');
-  tbody.innerHTML = '';
-
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
+    const msg = err.code && ERROR_MESSAGES[err.code] ? ERROR_MESSAGES[err.code] : (err.error || 'Unknown error');
+    if (err.code === 'KEY_EXPIRED') {
+      dispatchKeyExpired();
+    }
     document.getElementById('suggestMeta').innerHTML =
-      `<span class="text-red">HTTP ${resp.status}</span> — <span class="text-muted">${err.error || 'Unknown error'}</span> (HTTP: ${httpMs}ms)`;
+      `<span class="text-red">HTTP ${resp.status}</span> — <span class="text-muted">${esc(msg)}</span> (HTTP: ${httpMs}ms)`;
+    const pag = document.getElementById('suggestPagination');
+    if (pag) pag.style.display = 'none';
+    btn.classList.remove('is-loading');
+    btn.disabled = false;
     return;
   }
 
   const data = await resp.json();
-  const meta = document.getElementById('suggestMeta');
 
   if (data.results && data.results.length > 0) {
-    const cacheBadge = data.cache_status === "hit"
-      ? ` <span class="badge badge-info" title="Served from in-process LRU cache">↺ cache</span>`
-      : "";
-    meta.innerHTML =
-      `<span class="tier">${data.tier || '-'}</span>${cacheBadge} &middot; ` +
-      `<span class="count">${data.results.length}</span> results &middot; ` +
-      `server: <span class="ms">${data.took_ms}ms</span> &middot; HTTP: ${httpMs}ms`;
-    data.results.forEach(r => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="lookup-link" title="Click to look up">${r.id}</td>
-        <td>${esc(r.display)}</td>
-        <td>${esc(r.locality)}</td>
-        <td>${esc(r.state)}</td>
-        <td>${esc(r.postcode)}</td>
-        <td>${r.score != null ? r.score.toFixed(4) : '<span class="null">-</span>'}</td>
-        <td>${r.lat != null ? r.lat : '<span class="null">-</span>'}</td>
-        <td>${r.lon != null ? r.lon : '<span class="null">-</span>'}</td>`;
-      tr.querySelector('td').addEventListener('click', () => {
-        const pid = r.id;
-        document.querySelector('[data-tab="detail"]').click();
-        const panel = document.getElementById('panel-detail');
-        if (panel?.dataset.loaded) {
-          const pidEl = document.getElementById('pid');
-          if (pidEl) { pidEl.value = pid; doDetail(); }
-        } else {
-          const onLoaded = (e) => {
-            if (e.detail.tab === 'detail') {
-              document.removeEventListener('tab-loaded', onLoaded);
-              const pidEl = document.getElementById('pid');
-              if (pidEl) { pidEl.value = pid; doDetail(); }
-            }
-          };
-          document.addEventListener('tab-loaded', onLoaded);
-        }
-      });
-      tbody.appendChild(tr);
-    });
+    _suggestAllResults = data.results;
+    _suggestMetaData = {
+      tier: data.tier || '-',
+      cacheHit: data.cache_status === 'hit',
+      took_ms: data.took_ms,
+      httpMs,
+    };
+    document.getElementById('soff').value = '0';
+    renderSuggestPage();
   } else {
+    _suggestAllResults = [];
     const cacheTag = data.cache_status === "hit" ? " ↺ cache" : "";
-    meta.textContent = `No results${cacheTag} (server: ${data.took_ms}ms, HTTP: ${httpMs}ms)`;
+    document.getElementById('suggestMeta').textContent = `No results${cacheTag} (server: ${data.took_ms}ms, HTTP: ${httpMs}ms)`;
+    document.querySelector('#suggestTable tbody').innerHTML = '';
+    const pag = document.getElementById('suggestPagination');
+    if (pag) pag.style.display = 'none';
   }
+
+  btn.classList.remove('is-loading');
+  btn.disabled = false;
 }
 
 // =============================================================
@@ -115,7 +186,11 @@ async function fetchSuggestions(q) {
     });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
-      acDropdown.innerHTML = '<div class="ac-empty">HTTP ' + resp.status + ': ' + esc(err.error || 'Unknown error') + '</div>';
+      const msg = err.code && ERROR_MESSAGES[err.code] ? ERROR_MESSAGES[err.code] : (err.error || 'Unknown error');
+      if (err.code === 'KEY_EXPIRED') {
+        dispatchKeyExpired();
+      }
+      acDropdown.innerHTML = '<div class="ac-empty">HTTP ' + resp.status + ': ' + esc(msg) + '</div>';
       return;
     }
     const data = await resp.json();
@@ -145,6 +220,8 @@ async function fetchSuggestions(q) {
         acDropdown.classList.remove('open');
         acInput.value = display;
 
+        const pag = document.getElementById('suggestPagination');
+        if (pag) pag.style.display = 'none';
         const tbody = document.querySelector('#suggestTable tbody');
         tbody.innerHTML = `<tr>
           <td class="lookup-link">${esc(id)}</td>
@@ -190,17 +267,26 @@ function doSuggestFromAc() {
   doSuggest();
 }
 
-// Wrap doSuggest to sync acInput with sq
-const origDoSuggest = doSuggest;
-doSuggest = function() {
-  acInput.value = document.getElementById('sq').value;
-  return origDoSuggest.apply(this, arguments);
-};
+
+
+// =============================================================
+// Expired-key badge in the meta line
+// =============================================================
+document.addEventListener('key-expired', () => {
+  const meta = document.getElementById('suggestMeta');
+  if (meta && !meta.querySelector('.badge-expired')) {
+    meta.insertAdjacentHTML('afterbegin', '<span class="badge badge-expired" style="background:var(--red);color:#fff;padding:2px 6px;border-radius:3px;font-size:0.7rem;margin-right:6px">🔑 expired</span> ');
+  }
+});
 
 // =============================================================
 // Init suggest tab when loaded
 // =============================================================
+let _suggestInitialized = false;
+
 function initSuggest() {
+  if (_suggestInitialized) return;
+  _suggestInitialized = true;
   acInput = document.getElementById('acInput');
   acDropdown = document.getElementById('acDropdown');
   if (!acInput || !acDropdown) return;
@@ -234,7 +320,7 @@ function initSuggest() {
     if (!e.target.closest('.ac-wrap')) acDropdown.classList.remove('open');
   });
 
-  document.getElementById('suggestBtn').addEventListener('click', doSuggestFromAc);
+  document.getElementById('suggestBtn').addEventListener('click', doSuggest);
   document.getElementById('sq').addEventListener('keydown', e => { if (e.key === 'Enter') doSuggest(); });
 
   document.querySelectorAll('[data-q]').forEach(btn => {
@@ -245,6 +331,7 @@ function initSuggest() {
       doSuggest();
     });
   });
+
 }
 
 // Init on first tab load

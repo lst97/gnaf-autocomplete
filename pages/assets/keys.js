@@ -2,6 +2,38 @@
 // =============================================================
 
 // ──────────────────────────────────────────────────────────
+//  Error code→message mapping
+// ──────────────────────────────────────────────────────────
+const ERROR_MESSAGES = {
+  KEY_EXPIRED:         'Your API key has expired. Generate a new one at the /keys tab.',
+  MISSING_API_KEY:     'No API key set. Use the key bar at the top to add one.',
+  INVALID_API_KEY:     'The API key is invalid. Check the key bar at the top.',
+  DOMAIN_MISMATCH:     'The API key is not registered for this site\'s domain.',
+  KEY_REVOKED:         'This API key has been revoked.',
+  KEY_PENDING:         'Key is pending domain verification. Add the DNS TXT record and verify.',
+  KEY_RATE_LIMITED:    'Per-key rate limit reached. Wait a few minutes and try again.',
+  RATE_LIMITED:        'Too many requests. Slow down and try again.',
+  CANNOT_SELF_REVOKE:  'You cannot revoke your own key while other active keys exist. Revoke them first, or use DNS recovery to revoke all.',
+  RECOVERY_INVALID:    'Invalid or expired recovery session. Start recovery again.',
+  PAYLOAD_TOO_LARGE:   'Request too large. Try again with a smaller payload.',
+  DOMAIN_KEY_LIMIT:    'Maximum number of keys for this domain reached. Revoke an existing key first.',
+  TURNSTILE_FAILED:    'Browser verification failed. Please try again.',
+  DNS_ERROR:           'Could not query DNS. Check the domain name and try again.',
+};
+
+function handleApiError(data, defaultMsg) {
+  if (data && data.code && ERROR_MESSAGES[data.code]) {
+    return ERROR_MESSAGES[data.code];
+  }
+  if (data && data.error) return data.error;
+  return defaultMsg || 'An error occurred.';
+}
+
+function dispatchKeyExpired() {
+  document.dispatchEvent(new CustomEvent('key-expired', { detail: { timestamp: Date.now() } }));
+}
+
+// ──────────────────────────────────────────────────────────
 //  Turnstile gate — single challenge for the entire tab
 // ──────────────────────────────────────────────────────────
 let _gateInited = false;
@@ -164,10 +196,8 @@ function initKeyGeneration() {
           '<button onclick="verifyKey(\'' + esc(firstPrefix) + '\')" style="background:var(--blue);color:#fff;border:none;border-radius:4px;padding:6px 16px;cursor:pointer;font-size:var(--fs-sm)">Verify Now</button>' +
           '<span id="ak-verify-status" style="margin-left:8px;font-size:var(--fs-sm);color:var(--muted)"></span></div>' +
           '<div style="color:var(--orange);font-size:var(--fs-xs)">Save these keys now — they will not be shown again.</div>');
-      } else if (data.code === 'DOMAIN_KEY_LIMIT') {
-        showResult('<div style="color:var(--orange);font-size:var(--fs-sm)">' + esc(data.error) + '</div>');
       } else {
-        showResult('<div style="color:var(--orange);font-size:var(--fs-sm)">' + esc(data.error || 'Failed') + '</div>');
+        showResult('<div style="color:var(--orange);font-size:var(--fs-sm)">' + esc(handleApiError(data, 'Failed')) + '</div>');
       }
     } catch (e) {
       showResult('<div style="color:var(--orange);font-size:var(--fs-sm)">' + esc(e?.message || e || 'Network error') + '</div>');
@@ -184,6 +214,7 @@ function initKeyGeneration() {
 //  Key Management (via existing API key)
 // ──────────────────────────────────────────────────────────
 let _kmInit = false;
+let _mgmtKey = '';  // captured on successful manage, used for mgmt revoke calls
 
 function initKeyManagement() {
   const domainInput = document.getElementById('ak-mgmt-domain');
@@ -210,10 +241,11 @@ function initKeyManagement() {
       });
       const data = await res.json();
       if (!res.ok) {
-        errorEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(data.error || 'Failed') + '</span>';
+        errorEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(handleApiError(data, data.error || 'Failed')) + '</span>';
         return;
       }
       errorEl.textContent = '';
+      _mgmtKey = apiKey;  // capture for subsequent revoke calls
       renderMgmtTable(data.domain, data.keys);
     } catch (e) {
       errorEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(e?.message || e || 'Network error') + '</span>';
@@ -228,15 +260,18 @@ function initKeyManagement() {
       '<table style="width:100%;border-collapse:collapse;font-size:var(--fs-xs)"><thead><tr>' +
       '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Prefix</th>' +
       '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Status</th>' +
+      '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Expires</th>' +
       '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Created</th>' +
       '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Requests</th>' +
       '<th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)"></th></tr></thead><tbody>';
 
     for (const k of keys) {
       const sc = k.status === 'active' ? 'var(--green)' : k.status === 'pending' ? 'var(--orange)' : 'var(--muted)';
+      let expiresHtml = '<td style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">' + (k.expires_at ? fmtExpiry(k.expires_at) : '-') + '</td>';
       html += '<tr>' +
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono)">' + esc2(k.prefix) + '</td>' +
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);color:' + sc + '">' + esc2(k.status) + '</td>' +
+        expiresHtml +
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">' + fmt(k.created_at) + '</td>' +
         '<td style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">' + esc2(String(k.request_count)) + '</td>' +
         (k.status !== 'revoked'
@@ -245,19 +280,26 @@ function initKeyManagement() {
         '</tr>';
     }
     html += '</tbody></table>';
-    html += '<div style="font-size:0.65rem;color:var(--muted);margin-top:6px">Only the prefix (first 8 chars) is stored server-side.</div>';
+    html += '<div style="font-size:0.65rem;color:var(--muted);margin-top:6px">' +
+      'Your key is sent via X-API-Key header. Keys auto-extend on use — expires if unused for 90 days.</div>';
     resultEl.innerHTML = html;
   }
 
   window.mgmtRevoke = async function(prefix) {
     if (!prefix || !confirm('Revoke key prefix "' + prefix + '"?')) return;
+    if (!_mgmtKey) { alert('Session expired. Re-enter your API key.'); return; }
     try {
-      const res = await fetch('/api/keys/' + encodeURIComponent(prefix.trim()) + '/revoke', { method: 'POST' });
+      const res = await fetch('/api/keys/' + encodeURIComponent(prefix.trim()) + '/revoke', {
+        method: 'POST',
+        headers: { 'X-API-Key': _mgmtKey },
+      });
+      const data = await res.json();
       if (res.ok) {
         document.getElementById('ak-mgmt-btn').click();
+      } else if (data.code === 'CANNOT_SELF_REVOKE') {
+        alert(ERROR_MESSAGES.CANNOT_SELF_REVOKE);
       } else {
-        const data = await res.json();
-        alert(data.error || 'Failed');
+        alert(handleApiError(data, data.error || 'Failed'));
       }
     } catch (e) {
       alert(e?.message || e || 'Network error');
@@ -301,7 +343,7 @@ function initKeyRecovery() {
       const data = await res.json();
 
       if (!res.ok) {
-        stepEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(data.error || 'Failed') + '</span>';
+        stepEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(handleApiError(data, data.error || 'Failed')) + '</span>';
         return;
       }
 
@@ -325,7 +367,7 @@ function initKeyRecovery() {
   window.recoverVerify = async function() {
     const statusEl = document.getElementById('ak-recover-status');
     if (!statusEl || !currentToken) return;
-    statusEl.textContent = '⏳ Checking DNS...';
+    statusEl.textContent = '⏳ Verifying DNS...';
 
     const turnstileToken = requireToken();
     if (turnstileToken === null) return;
@@ -343,7 +385,7 @@ function initKeyRecovery() {
       const data = await res.json();
 
       if (!res.ok) {
-        statusEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(data.error || 'Verification failed') + '</span>';
+        statusEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(handleApiError(data, data.error || 'Verification failed')) + '</span>';
         return;
       }
 
@@ -351,30 +393,40 @@ function initKeyRecovery() {
         const esc2 = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
         const fmt = n => n ? new Date(n).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never';
 
-        let html = '<div style="color:var(--green);font-weight:600;margin-bottom:8px">✓ Domain verified! Your keys:</div>' +
+        let html = '<div style="color:var(--green);font-weight:600;margin-bottom:8px">✓ Domain verified — review keys below:</div>' +
           '<table style="width:100%;border-collapse:collapse;font-size:var(--fs-xs)"><thead><tr>' +
           '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Prefix</th>' +
           '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Status</th>' +
+          '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Expires</th>' +
           '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Created</th>' +
           '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">Requests</th>' +
           '<th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)"></th></tr></thead><tbody>';
 
         for (const k of data.keys) {
           const sc = k.status === 'active' ? 'var(--green)' : k.status === 'pending' ? 'var(--orange)' : 'var(--muted)';
+          let expiresHtml = '<td style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">' + (k.expires_at ? fmtExpiry(k.expires_at) : '-') + '</td>';
           html += '<tr>' +
             '<td style="padding:6px 8px;border-bottom:1px solid var(--border);font-family:var(--mono)">' + esc2(k.prefix) + '</td>' +
             '<td style="padding:6px 8px;border-bottom:1px solid var(--border);color:' + sc + '">' + esc2(k.status) + '</td>' +
+            expiresHtml +
             '<td style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">' + fmt(k.created_at) + '</td>' +
             '<td style="padding:6px 8px;border-bottom:1px solid var(--border);color:var(--muted)">' + esc2(String(k.request_count)) + '</td>' +
-            (k.status !== 'revoked'
-              ? '<td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right"><button onclick="recoverRevoke(\'' + esc2(k.prefix) + '\')" style="background:var(--red);color:#fff;border:none;border-radius:3px;padding:3px 10px;cursor:pointer;font-size:0.7rem">Revoke</button></td>'
-              : '<td style="padding:6px 8px;border-bottom:1px solid var(--border)"></td>') +
+            '<td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right"></td>' +
             '</tr>';
         }
         html += '</tbody></table>';
-        html += '<div style="font-size:0.65rem;color:var(--muted);margin-top:6px">Only the prefix (first 8 chars) is stored server-side.</div>';
+        html += '<div style="font-size:0.65rem;color:var(--muted);margin-top:6px">Keys auto-extend on use — expires if unused for 90 days.</div>';
+
+        // Bulk-revoke button
+        html += '<div style="margin-top:12px;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px">' +
+          '<div style="font-size:var(--fs-sm);margin-bottom:6px">🗑 Lost access to all keys? Bulk-revoke them here. This is <strong>irreversible</strong>.</div>' +
+          '<button onclick="recoverBulkRevoke()" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:8px 20px;cursor:pointer;font-size:var(--fs-sm)">Revoke ALL keys for this domain</button>' +
+          '<span id="ak-bulk-revoke-status" style="margin-left:8px;font-size:var(--fs-sm);color:var(--muted)"></span></div>';
+
+        // Warning banner
         html += '<div style="background:var(--surface-2);border-left:3px solid var(--red);padding:8px 10px;margin-top:8px;font-size:var(--fs-xs)">' +
           '<strong>⚠ Remove the <code>gnaf-mgmt</code> TXT record</strong> from your DNS now. While it exists, anyone who can add DNS records for your domain can manage your keys.</div>';
+
         resultEl.innerHTML = html;
         statusEl.textContent = '';
       } else {
@@ -385,25 +437,32 @@ function initKeyRecovery() {
     }
   };
 
-  window.recoverRevoke = async function(prefix) {
-    if (!prefix || !confirm('Revoke key prefix "' + prefix + '"?')) return;
+  window.recoverBulkRevoke = async function() {
+    const statusEl = document.getElementById('ak-bulk-revoke-status');
+    if (!statusEl) return;
+    if (!currentToken) { statusEl.textContent = 'Session expired. Start recovery again.'; return; }
+
+    if (!confirm('⚠ Are you sure? This will revoke ALL active API keys for ' + currentDomain + '. This action is irreversible.')) return;
+
+    statusEl.textContent = '⏳ Revoking all keys...';
     try {
-      const res = await fetch('/api/keys/' + encodeURIComponent(prefix.trim()) + '/revoke', { method: 'POST' });
+      const res = await fetch('/api/keys/recover/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verification_token: currentToken }),
+      });
+      const data = await res.json();
+
       if (res.ok) {
-        const btn = document.querySelector(`[onclick*="recoverRevoke('${prefix}')"]`);
-        if (btn) {
-          const row = btn.closest('tr');
-          if (row) {
-            row.querySelectorAll('td').forEach(td => td.textContent = '');
-            row.innerHTML = '<td colspan="5" style="color:var(--muted);font-style:italic">Revoked</td>';
-          }
-        }
+        statusEl.innerHTML = '<span style="color:var(--green)">✓ Successfully revoked ' + esc(String(data.count)) + ' key(s) for ' + esc(data.domain) + '.</span>';
+        // Clear the recovery flow since the token is now used
+        currentToken = '';
+        currentDomain = '';
       } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to revoke');
+        statusEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(handleApiError(data, data.error || 'Failed')) + '</span>';
       }
     } catch (e) {
-      alert(e?.message || e || 'Network error');
+      statusEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(e?.message || e || 'Network error') + '</span>';
     }
   };
 }
@@ -427,14 +486,23 @@ window.copyKey = async function(key, btn) {
 window.revokeKey = async function(prefix) {
   const statusEl = document.getElementById('ak-revoke-status');
   if (!statusEl || !prefix) return;
+  const keyFromUrl = new URLSearchParams(window.location.search).get('key');
+  let apiKey = keyFromUrl || getApiKey();
+  if (!apiKey) { statusEl.innerHTML = '<span style="color:var(--orange)">✗ No API key available. Set one in the header bar.</span>'; return; }
+
   statusEl.textContent = '⏳ Revoking...';
   try {
-    const res = await fetch('/api/keys/' + encodeURIComponent(prefix.trim()) + '/revoke', { method: 'POST' });
+    const res = await fetch('/api/keys/' + encodeURIComponent(prefix.trim()) + '/revoke', {
+      method: 'POST',
+      headers: apiKey ? { 'X-API-Key': apiKey } : {},
+    });
     const data = await res.json();
     if (res.ok) {
       statusEl.innerHTML = '<span style="color:var(--green)">✓ Key revoked. You can now generate a new one.</span>';
+    } else if (data.code === 'CANNOT_SELF_REVOKE') {
+      statusEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(ERROR_MESSAGES.CANNOT_SELF_REVOKE) + '</span>';
     } else {
-      statusEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(data.error || 'Failed') + '</span>';
+      statusEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(handleApiError(data, data.error || 'Failed')) + '</span>';
     }
   } catch (e) {
     statusEl.innerHTML = '<span style="color:var(--orange)">✗ ' + esc(e?.message || e || 'Network error') + '</span>';
@@ -461,6 +529,20 @@ window.verifyKey = async function(prefix) {
     statusEl.textContent = e?.message || e || 'Network error';
   }
 };
+
+// ──────────────────────────────────────────────────────────
+//  Helper — format expiry date with color coding
+// ──────────────────────────────────────────────────────────
+function fmtExpiry(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
+  const now = Date.now();
+  const daysLeft = Math.round((d.getTime() - now) / 86400000);
+  const formatted = d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (daysLeft < 0) return '<span style="color:var(--red)" title="Key expired">' + formatted + ' (expired)</span>';
+  if (daysLeft <= 30) return '<span style="color:var(--orange)" title="Expires soon — keep using the key to auto-extend">' + formatted + '</span>';
+  return formatted;
+}
 
 // ──────────────────────────────────────────────────────────
 //  Initialization

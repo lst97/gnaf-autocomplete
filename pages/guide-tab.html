@@ -144,6 +144,7 @@
       <tr><td>Valid key + Referer/Origin doesn't match</td><td style="color:var(--red)">❌ 403 DOMAIN_MISMATCH</td></tr>
       <tr><td>Revoked key</td><td style="color:var(--red)">❌ 403 KEY_REVOKED</td></tr>
       <tr><td>Pending key (not yet verified)</td><td style="color:var(--red)">❌ 403 KEY_PENDING</td></tr>
+      <tr><td>Key expired (unused for 90 days)</td><td style="color:var(--red)">❌ 401 KEY_EXPIRED</td></tr>
       <tr><td>No key provided</td><td style="color:var(--red)">❌ 401 MISSING_API_KEY</td></tr>
       <tr><td>Key exceeds hourly budget</td><td style="color:var(--red)">❌ 429 KEY_RATE_LIMITED</td></tr>
     </tbody>
@@ -168,7 +169,7 @@
 <div class="card" style="border-left:3px solid var(--orange)">
   <h3>⚠️ Key Management — Security</h3>
   <p class="card-lead">
-    The API Keys tab has two ways to manage your keys:
+    The API Keys tab has three ways to manage your keys:
   </p>
 
   <h4 style="margin-top:12px">🔑 Method 1: Using an existing API key</h4>
@@ -176,6 +177,15 @@
     If you have an active API key, enter your domain and paste the full key, then click <strong>Manage</strong>.
     The server verifies the key belongs to your domain and shows all keys with revoke buttons.
     <em>No DNS needed.</em>
+  </p>
+
+  <h4 style="margin-top:12px">🗑 Revoking keys</h4>
+  <p style="font-size:var(--fs-sm);margin-bottom:6px">
+    From the Manage table, click <strong>Revoke</strong> to revoke a single key. The revoke
+    call uses your existing <code>X-API-Key</code> header — no need to re-enter the full key.
+    The server checks that the auth key belongs to the same domain as the target key.
+    You cannot revoke your own key while other active keys exist (last-key guard).
+    To revoke yourself, use DNS recovery (Method 2).
   </p>
 
   <h4 style="margin-top:12px">🔐 Method 2: DNS Recovery (lost all keys)</h4>
@@ -186,13 +196,68 @@
     <li>Enter your domain and click <strong>Start Recovery</strong></li>
     <li>Add <code>gnaf-mgmt=&lt;token&gt;</code> to your DNS (this is different from <code>gnaf-verify</code> used for key activation)</li>
     <li>Click <strong>Verify DNS &amp; List Keys</strong></li>
+    <li>After verification, use the <strong>Revoke ALL keys</strong> button to bulk-revoke every key for your domain in one click</li>
   </ol>
+  <p style="font-size:var(--fs-sm);margin-bottom:6px">
+    The bulk-revoke endpoint (<code>POST /api/keys/recover/revoke</code>) uses the recovery
+    session token. It does not require the original API key — the DNS proof is your authority.
+  </p>
 
   <div class="callout" style="background:var(--surface-2);border-left:3px solid var(--red);padding:8px 12px;margin-bottom:4px;font-size:var(--fs-sm)">
     <strong>⚠ Critical:</strong> Anyone who can add a DNS TXT record for your domain can list and
     revoke <em>all</em> API keys. After you finish managing keys via DNS recovery, <strong>immediately remove</strong>
     the <code>gnaf-mgmt</code> TXT record from your DNS. Do not leave it active — it is a backdoor to your keys.
     The recovery session expires after 5 minutes, but the DNS record persists until you delete it.
+  </div>
+</div>
+
+<div class="card" style="border-left:3px solid var(--cyan)">
+  <h3>🔐 Key Expiry & Auto-extension</h3>
+  <p class="card-lead">
+    Every API key has a 90-day sliding-window expiry.
+  </p>
+  <ul style="margin-left:20px;margin-bottom:6px;font-size:var(--fs-sm)">
+    <li>New keys get <code>expires_at = now + 90 days</code></li>
+    <li>Each time the key is used successfully, <code>expires_at</code> is pushed to <code>now + 90 days</code> (auto-extend)</li>
+    <li>Auto-extension only fires when the key is within the last 30 days of its window — capping writes to ~3 per 90-day lifetime per key</li>
+    <li>If a key is unused for 90 consecutive days, it expires and returns <code>401 KEY_EXPIRED</code></li>
+    <li>Expired keys can be revived by generating a new key. There is no renewal endpoint.</li>
+  </ul>
+  <p style="font-size:var(--fs-sm);margin-bottom:4px">
+    <strong>Bottom line:</strong> Use it or lose it. A key used daily stays valid forever.
+    A key generated for a one-off test and forgotten will expire.
+  </p>
+</div>
+
+<div class="card" style="border-left:3px solid var(--muted)">
+  <h3>❌ Error Codes</h3>
+  <p class="card-lead">
+    API errors return a JSON body with <code>error</code> (human-readable) and <code>code</code> (machine-parsable) fields.
+  </p>
+  <div class="table-wrap" style="margin-top:8px">
+  <table>
+    <thead>
+      <tr><th>Status</th><th>Code</th><th>Meaning</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>400</td><td><code>VALIDATION_ERROR</code></td><td>Invalid input parameters</td></tr>
+      <tr><td>400</td><td><code>PAYLOAD_TOO_LARGE</code></td><td>Request body exceeds 64 KB limit</td></tr>
+      <tr><td>400</td><td><code>TURNSTILE_FAILED</code></td><td>Cloudflare Turnstile challenge failed</td></tr>
+      <tr><td>400</td><td><code>RECOVERY_INVALID</code></td><td>Invalid or expired recovery session</td></tr>
+      <tr><td>401</td><td><code>MISSING_API_KEY</code></td><td>No <code>X-API-Key</code> header provided</td></tr>
+      <tr><td>401</td><td><code>INVALID_API_KEY</code></td><td>The API key hash does not match any stored key</td></tr>
+      <tr><td>401</td><td><code>KEY_EXPIRED</code></td><td>Key has not been used in 90+ days</td></tr>
+      <tr><td>403</td><td><code>KEY_REVOKED</code></td><td>Key has been revoked</td></tr>
+      <tr><td>403</td><td><code>KEY_PENDING</code></td><td>Key exists but domain not yet verified via DNS</td></tr>
+      <tr><td>403</td><td><code>DOMAIN_MISMATCH</code></td><td><code>Origin</code>/<code>Referer</code> doesn't match the key's domain</td></tr>
+      <tr><td>409</td><td><code>CANNOT_SELF_REVOKE</code></td><td>Can't revoke your own key while others exist</td></tr>
+      <tr><td>429</td><td><code>RATE_LIMITED</code></td><td>Global per-IP rate limit exceeded</td></tr>
+      <tr><td>429</td><td><code>KEY_RATE_LIMITED</code></td><td>Per-key hourly rate limit exceeded</td></tr>
+      <tr><td>429</td><td><code>DOMAIN_KEY_LIMIT</code></td><td>Max keys per domain reached</td></tr>
+      <tr><td>404</td><td><code>NOT_FOUND</code></td><td>Address or key prefix not found</td></tr>
+      <tr><td>500</td><td><code>INTERNAL_ERROR</code></td><td>Unexpected server error</td></tr>
+    </tbody>
+  </table>
   </div>
 </div>
 
@@ -216,23 +281,31 @@
       <tr><td style="font-family:var(--mono)">postcode</td><td>❌</td><td>Filter: exactly 4 digits</td></tr>
       <tr><td style="font-family:var(--mono)">limit</td><td>❌</td><td>Max results (default 10, max 50)</td></tr>
       <tr><td style="font-family:var(--mono)">offset</td><td>❌</td><td>Pagination offset (max 1000)</td></tr>
-      <tr><td style="font-family:var(--mono)">key</td><td>✅</td><td>Your API key (or <code>X-API-Key</code> header)</td></tr>
+      <tr><td style="font-family:var(--mono)">no_cache</td><td>❌</td><td>Set to <code>1</code> or <code>true</code> to bypass the in-process LRU</td></tr>
     </tbody>
   </table>
   </div>
+  <p style="font-size:var(--fs-sm);color:var(--muted);margin-top:8px">
+    API key is passed via the <code>X-API-Key</code> header (not a query parameter).
+    The <code>Referer</code> (or <code>Origin</code>) header must match the key's
+    registered domain.
+  </p>
 
   <h4 style="margin-top:16px">Examples</h4>
   <div class="code-block" style="font-size:var(--fs-xs);margin-top:8px">
     <div># Simple street search</div>
     <div>curl "https://api.yourservice.com/suggest?q=12+main+st+sydney" \</div>
+    <div>  -H "X-API-Key: gnaf_pk_abc123..." \</div>
     <div>  -H "Referer: https://myapp.com"</div>
     <div></div>
     <div># State-filtered</div>
     <div>curl "https://api.yourservice.com/suggest?q=centre+rd&amp;state=VIC" \</div>
+    <div>  -H "X-API-Key: gnaf_pk_abc123..." \</div>
     <div>  -H "Referer: https://myapp.com"</div>
     <div></div>
     <div># Paginated (page 2)</div>
     <div>curl "https://api.yourservice.com/suggest?q=sydney&amp;limit=10&amp;offset=10" \</div>
+    <div>  -H "X-API-Key: gnaf_pk_abc123..." \</div>
     <div>  -H "Referer: https://myapp.com"</div>
   </div>
 </div>
@@ -249,6 +322,31 @@
 </div>
 
 <div class="card">
+  <h3>📊 Scoring</h3>
+  <p class="card-lead">
+    Every result includes a <code>score</code> field (0 to ~1.69). Higher = more relevant.
+    The formula combines text similarity with G-NAF data confidence:
+  </p>
+  <div class="code-block" style="font-size:var(--fs-sm);margin:var(--sp-2) 0">
+    score = similarity × (1 + ln(confidenceNorm + 1))
+  </div>
+  <ul style="font-size:var(--fs-sm);line-height:1.7">
+    <li><strong>similarity</strong> (0–1): trigram text match between query and address.
+      For btree tiers (tier0/1/postcode/tier0_number/tier0_locality), similarity is
+      always 1.0 — only confidence_norm drives the ranking.</li>
+    <li><strong>confidenceNorm</strong> (0–1): normalises G-NAF's <code>CONFIDENCE</code>
+      column. G-NAF confidence <code>6</code> → <code>1.0</code> (verified address),
+      <code>0</code> → <code>0.14</code>, <code>NULL</code> → <code>0.5</code>.</li>
+  </ul>
+  <p style="font-size:var(--fs-sm);margin-top:var(--sp-2)">
+    All SQL queries use <code>score DESC</code> as the primary sort, so high-confidence,
+    well-matching addresses always appear first. The ln(confidenceNorm+1) boost is
+    logarithmic — a high confidence address gets a modest bump but never dominates
+    the text similarity.
+  </p>
+</div>
+
+<div class="card">
   <h3>⚙️ Configuration</h3>
 
   <h4 style="margin-top:12px">Environment Variables</h4>
@@ -258,14 +356,41 @@
       <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
     </thead>
     <tbody>
+      <tr><td colspan="3" style="font-weight:bold;background:var(--bg2)">Server</td></tr>
       <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">PORT</td><td>8000</td><td>API server port</td></tr>
-      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">DATABASE_URL</td><td>postgresql://...</td><td>PostgreSQL connection string</td></tr>
-      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">CORS_ORIGINS</td><td>*</td><td>Allowed CORS origins (comma-separated)</td></tr>
-      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">TURNSTILE_SITE_KEY</td><td>(empty)</td><td>Cloudflare Turnstile site key</td></tr>
-      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">TURNSTILE_SECRET_KEY</td><td>(empty)</td><td>Cloudflare Turnstile secret key</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">PUBLIC_URL</td><td>(empty)</td><td>Public URL of the API (used for same-origin API key bypass)</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">NODE_ENV</td><td>development</td><td><code>development</code>, <code>production</code>, or <code>test</code> — enables rate limiting + Turnstile checks in production</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">LOG_LEVEL</td><td>info</td><td>One of: trace, debug, info, warn, error, fatal</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">CORS_ORIGINS</td><td>*</td><td>Allowed CORS origins (comma-separated, or <code>*</code> for dev)</td></tr>
+
+      <tr><td colspan="3" style="font-weight:bold;background:var(--bg2)">PostgreSQL</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">DATABASE_URL</td><td>postgresql://postgres:postgres@localhost:5433/gnaf</td><td>Primary PostgreSQL connection string</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">DATABASE_URL_READWRITE</td><td>(same)</td><td>Separate connection string for write operations (optional)</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">POOL_SIZE</td><td>10</td><td>Connection pool size (1–100)</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">POSTGRES_PASSWORD</td><td>postgres</td><td>Docker Compose only: sets the <code>postgres</code> user's password</td></tr>
+
+      <tr><td colspan="3" style="font-weight:bold;background:var(--bg2)">Suggest Cache (in-process LRU)</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">SUGGEST_CACHE_MAX</td><td>1,000</td><td>Max entries in the in-process LRU cache</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">SUGGEST_CACHE_TTL_MS</td><td>30,000</td><td>Cache TTL in ms (1s–1h)</td></tr>
+
+      <tr><td colspan="3" style="font-weight:bold;background:var(--bg2)">API Key Rate Limiting</td></tr>
       <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">API_KEY_RATE_LIMIT</td><td>5,000</td><td>Max requests per hour per key</td></tr>
-      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">MAX_KEYS_PER_DOMAIN</td><td>5</td><td>Max active + pending keys per domain</td></tr>
-      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">CF_TUNNEL_TOKEN</td><td>(empty)</td><td>Cloudflare Tunnel token (production)</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">API_KEY_RATE_WINDOW_MS</td><td>3,600,000</td><td>Rate limit window in ms (default 1 hour)</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">KEYGEN_RATE_LIMIT</td><td>10</td><td>Max key generation attempts per hour per IP</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">KEYGEN_RATE_WINDOW_MS</td><td>3,600,000</td><td>Keygen rate limit window in ms (default 1 hour)</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">MAX_KEYS_PER_DOMAIN</td><td>5</td><td>Max active + pending API keys per domain</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">DOMAIN_SPAM_TLDS</td><td>.tk .ml .ga …</td><td>Blocked TLDs for key registration (space-separated)</td></tr>
+
+      <tr><td colspan="3" style="font-weight:bold;background:var(--bg2)">Cloudflare Turnstile</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">TURNSTILE_SITE_KEY</td><td>(empty)</td><td>Turnstile site key (test key <code>1x00000000000000000000AA</code> in dev)</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">TURNSTILE_SECRET_KEY</td><td>(empty)</td><td>Turnstile secret key (test key <code>1x00000000000000000000AA</code> in dev)</td></tr>
+
+      <tr><td colspan="3" style="font-weight:bold;background:var(--bg2)">G-NAF Data</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">GNAF_DATA_DIR</td><td>(empty)</td><td>Path to the G-NAF PSV files (used by the loader)</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">GNAF_VERSION</td><td>MAY 2026</td><td>Display label for the loaded G-NAF release</td></tr>
+
+      <tr><td colspan="3" style="font-weight:bold;background:var(--bg2)">Deployment</td></tr>
+      <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">CF_TUNNEL_TOKEN</td><td>(empty)</td><td>Cloudflare Tunnel token for <code>cloudflared</code> (Docker Compose only)</td></tr>
     </tbody>
   </table>
   </div>
@@ -296,18 +421,63 @@
   </div>
 </div>
 
-<div class="card">
-  <h3>✅ Health Checks</h3>
-  <div class="code-block" style="font-size:var(--fs-xs);margin-top:8px">
-    <div># Liveness (process is running)</div>
-    <div>curl https://api.yourservice.com/healthz</div>
-    <div># → {"status":"ok"}</div>
-    <div></div>
-    <div># Readiness (DB + data loaded)</div>
-    <div>curl https://api.yourservice.com/readyz</div>
-    <div># → {"status":"ready","db":"connected","mv_populated":true,"mv_rows":16025964}</div>
-    <div></div>
-    <div># Warm index cache (after deploy)</div>
-    <div>curl -X POST https://api.yourservice.com/warmup</div>
+  <div class="card">
+    <h3>✅ Health Checks</h3>
+    <div class="code-block" style="font-size:var(--fs-xs);margin-top:8px">
+      <div># Liveness (process is running)</div>
+      <div>curl https://api.yourservice.com/healthz</div>
+      <div># → {"status":"ok"}</div>
+      <div></div>
+      <div># Readiness (DB + data loaded)</div>
+      <div>curl https://api.yourservice.com/readyz</div>
+      <div># → {"status":"ready","db":"connected","mv_populated":true,"mv_rows":16025964}</div>
+      <div></div>
+      <div># Warm index cache (after deploy)</div>
+      <div>curl -X POST https://api.yourservice.com/warmup</div>
+    </div>
   </div>
+
+<div class="card">
+  <h3>⚠️ Error Codes</h3>
+  <p class="card-lead">
+    All errors return a JSON body with <code>error</code> (human-readable message),
+    <code>code</code> (machine-readable identifier), and <code>meta</code>:
+  </p>
+  <div class="code-block" style="font-size:var(--fs-xs);margin:var(--sp-2) 0">
+    <div>{ "error": "Missing API key.", "code": "MISSING_API_KEY", "meta": { "took_ms": 0, "request_id": "abc...", "timestamp": "..." } }</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Code</th><th>HTTP</th><th>Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">VALIDATION_ERROR</td><td>400</td><td>Invalid query, state, or postcode format</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">MISSING_API_KEY</td><td>401</td><td>No <code>X-API-Key</code> header provided</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">INVALID_API_KEY</td><td>401</td><td>API key prefix not found or hash mismatch</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">KEY_EXPIRED</td><td>401</td><td>Key unused for 90+ days</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">KEY_REVOKED</td><td>403</td><td>Key has been revoked</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">KEY_PENDING</td><td>403</td><td>Key requires DNS verification</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">DOMAIN_MISMATCH</td><td>403</td><td><code>Referer</code>/<code>Origin</code> does not match key's domain</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">CANNOT_SELF_REVOKE</td><td>409</td><td>Cannot revoke own key while other keys exist</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">KEY_RATE_LIMITED</td><td>429</td><td>Per-key hourly budget exceeded</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">RATE_LIMITED</td><td>429</td><td>IP-based rate limit exceeded (production)</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">DOMAIN_KEY_LIMIT</td><td>429</td><td>Max keys per domain reached</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">TURNSTILE_FAILED</td><td>400</td><td>Cloudflare Turnstile challenge failed</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">RECOVERY_INVALID</td><td>400</td><td>DNS recovery token invalid or expired</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">DNS_ERROR</td><td>502</td><td>DNS lookup failure during key recovery</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">VERIFICATION_ERROR</td><td>400</td><td>Key verification token mismatch</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">PAYLOAD_TOO_LARGE</td><td>413</td><td>Request body exceeds 64KB</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">NOT_FOUND</td><td>404</td><td>Address PID not found or route does not exist</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">DATABASE_ERROR</td><td>500</td><td>Database connection or query failure</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">INTERNAL_ERROR</td><td>500</td><td>Unexpected server error</td></tr>
+        <tr><td style="font-family:var(--mono);font-size:var(--fs-xs)">FORBIDDEN</td><td>403</td><td>Action not allowed for this key/domain</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="card-lead mt-2" style="font-size:var(--fs-sm)">
+    Response headers include <code>X-Request-Id</code> (trace the request in server logs),
+    and for protected endpoints <code>X-RateLimit-Limit</code>,
+    <code>X-RateLimit-Remaining</code>, and <code>X-Key-Status</code>.
+  </p>
 </div>

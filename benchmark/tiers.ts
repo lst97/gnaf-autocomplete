@@ -12,13 +12,13 @@ const API = process.env.API_URL ?? "http://localhost:8000";
 const N = 100;
 
 const TIERS = [
+  { label: "tier0_locality (state+locality)", queries: ["syd nsw", "mel vic", "bris qld", "per wa"] },
+  { label: "tier1 (street prefix)", queries: ["sydney", "main st", "george st", "collins st", "12 main st"] },
   { label: "tier0 (state+postcode)", queries: ["sydney nsw 2000", "melbourne vic 3000", "brisbane qld 4000", "perth wa 6000", "adelaide sa 5000"] },
   { label: "postcode (numeric prefix)", queries: ["2000", "3000", "4000"] },
-  { label: "tier0_number (state+number)", queries: ["1 nsw", "100 vic", "12 qld", "200 sa"] },
-  { label: "tier0_locality (state+locality)", queries: ["syd nsw", "mel vic", "bris qld", "per wa"] },
-  { label: "tier1 (street prefix)", queries: ["sydne", "main st", "george st", "queen st", "collins st"] },
   { label: "tier4 (multi-word fallback)", queries: ["ab cd sydney", "xy zy brisbane"] },
-  { label: "tier2 (single-word fallback)", queries: ["xy", "ab", "12", "yz"] },
+  { label: "tier2 (single-word fallback)", queries: ["syd", "xy", "ab", "yz"] },
+  { label: "tier0_number (state+number)", queries: ["1 nsw", "100 vic", "12 qld", "200 sa"] },
 ];
 
 async function main() {

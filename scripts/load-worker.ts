@@ -17,6 +17,7 @@
  */
 
 import postgres from "postgres";
+import { env } from "../src/env";
 import { logger } from "../src/lib/logger";
 
 // PSV column indices (0-based) — verified against actual G-NAF May 2026 headers
@@ -286,24 +287,24 @@ async function loadState(
 // MAIN
 // ============================================================================
 async function main() {
-  const state = process.env.GNAF_STATE;
+  const state = env.GNAF_STATE;
   if (!state) {
     logger.error("GNAF_STATE environment variable not set");
     process.exit(1);
   }
-  const label = process.env.GNAF_STATE_LABEL ?? state;
+  const label = env.GNAF_STATE_LABEL ?? state;
   // Row-range parameters for NSW splitting. Default: process all rows.
   // startRow=0 means "first chunk — also skip the header row"
   // startRow>0 means "subsequent chunk — header already skipped by chunk 0"
-  const startRow = Number(process.env.GNAF_START_ROW ?? "0");
-  const endRow = Number(process.env.GNAF_END_ROW ?? String(Number.MAX_SAFE_INTEGER));
+  const startRow = env.GNAF_START_ROW ?? 0;
+  const endRow = env.GNAF_END_ROW ?? Number.MAX_SAFE_INTEGER;
 
-  const dataDir = process.env.GNAF_DATA_DIR ?? "";
+  const dataDir = env.GNAF_DATA_DIR;
   if (!dataDir) {
     logger.error("GNAF_DATA_DIR environment variable is required");
     return;
   }
-  const dbUrl = process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5433/gnaf";
+  const dbUrl = env.DATABASE_URL;
 
   // max: 1 — workers are single-threaded; the default pool would create
   // multiple connections per worker and exhaust the server's max_connections.

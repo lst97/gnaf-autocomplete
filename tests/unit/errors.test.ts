@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { AppError, DatabaseError, ValidationError } from "../../src/lib/errors";
+import {
+  AppError,
+  DatabaseError,
+  ERROR_CODES,
+  ValidationError,
+} from "../../src/lib/errors";
 
 describe("AppError", () => {
   test("creates with default values", () => {
@@ -43,5 +48,40 @@ describe("DatabaseError", () => {
     expect(err.code).toBe("DATABASE_ERROR");
     expect(err.name).toBe("DatabaseError");
     expect(err.message).toBe("connection failed");
+  });
+});
+
+describe("ERROR_CODES registry", () => {
+  test("contains all required error codes", () => {
+    expect(ERROR_CODES.VALIDATION_ERROR).toBe("VALIDATION_ERROR");
+    expect(ERROR_CODES.DATABASE_ERROR).toBe("DATABASE_ERROR");
+    expect(ERROR_CODES.INTERNAL_ERROR).toBe("INTERNAL_ERROR");
+  });
+
+  test("all error codes are uppercase snake_case", () => {
+    for (const key of Object.keys(ERROR_CODES) as Array<keyof typeof ERROR_CODES>) {
+      expect(ERROR_CODES[key]).toMatch(/^[A-Z][A-Z_]+$/);
+    }
+  });
+
+  test("no duplicate values in ERROR_CODES", () => {
+    const values = Object.values(ERROR_CODES);
+    const unique = new Set(values);
+    expect(unique.size).toBe(values.length);
+  });
+
+  test("error subclasses use codes from the registry", () => {
+    const ve = new ValidationError("test");
+    const de = new DatabaseError("test");
+    const ae = new AppError("test");
+    expect(Object.values(ERROR_CODES)).toContain(ve.code);
+    expect(Object.values(ERROR_CODES)).toContain(de.code);
+    expect(Object.values(ERROR_CODES)).toContain(ae.code);
+  });
+
+  test("subclass constructors do not accept custom code (they hardcode it)", () => {
+    // @ts-expect-error - subclass constructors only accept message
+    const ve = new ValidationError("test", 400, "CUSTOM_CODE");
+    expect(ve.code).toBe("VALIDATION_ERROR"); // not "CUSTOM_CODE"
   });
 });

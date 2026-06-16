@@ -16,11 +16,18 @@ async function doDetail() {
   const httpMs = (performance.now() - t0).toFixed(1);
 
   const data = await resp.json();
+  const serverMs = data.took_ms ?? data.meta?.took_ms;
   if (!resp.ok) {
+    const msg = data.code && ERROR_MESSAGES[data.code] ? ERROR_MESSAGES[data.code] : (data.error || 'Unknown error');
+    if (data.code === 'KEY_EXPIRED') {
+      dispatchKeyExpired();
+    }
     document.getElementById('detailMeta').innerHTML =
-      `<span class="text-red">HTTP ${resp.status}</span> — <span class="text-muted">${esc(data.error || 'Unknown error')}</span> (${httpMs}ms)`;
+      `<span class="text-red">HTTP ${resp.status}</span> — <span class="text-muted">${esc(msg)}</span>` +
+      ` &middot; server: <span class="ms">${serverMs ?? '?'}ms</span> &middot; HTTP: ${httpMs}ms`;
   } else {
-    document.getElementById('detailMeta').textContent = `HTTP ${resp.status} (${httpMs}ms)`;
+    document.getElementById('detailMeta').innerHTML =
+      `server: <span class="ms">${serverMs}ms</span> &middot; HTTP: ${httpMs}ms`;
   }
   document.getElementById('detailResult').textContent = JSON.stringify(data, null, 2);
 }

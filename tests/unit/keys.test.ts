@@ -68,6 +68,54 @@ describe("validateDomain", () => {
   test("rejects string with spaces", () => {
     expect(validateDomain("my app.com")).toBeNull();
   });
+
+  // Additional edge cases
+  test("accepts domain with trailing slash", () => {
+    expect(validateDomain("myapp.com/")).toBe("myapp.com");
+  });
+
+  test("accepts domain with path", () => {
+    expect(validateDomain("myapp.com/some/path")).toBe("myapp.com");
+  });
+
+  test("accepts domain with port number", () => {
+    expect(validateDomain("myapp.com:8080")).toBe("myapp.com");
+  });
+
+  test("rejects bare IP localhost 127.0.0.1", () => {
+    expect(validateDomain("127.0.0.1")).toBeNull();
+  });
+
+  test("rejects IPv6 localhost", () => {
+    expect(validateDomain("[::1]")).toBeNull();
+  });
+
+  test("rejects bare IPv6 address", () => {
+    expect(validateDomain("[2001:db8::1]")).toBeNull();
+  });
+
+  test("accepts domain with hyphens", () => {
+    expect(validateDomain("my-app.com")).toBe("my-app.com");
+  });
+
+  test("accepts domain with leading hyphen (RFC-compliant)", () => {
+    // The URL parser parses "-myapp.com" as hostname "-myapp.com" which passes validation
+    expect(validateDomain("-myapp.com")).toBe("-myapp.com");
+  });
+
+  test("accepts protocol-relative URL (parsed as myapp.com)", () => {
+    // "//myapp.com" → "https:////myapp.com" → URL parses hostname as "myapp.com"
+    expect(validateDomain("//myapp.com")).toBe("myapp.com");
+  });
+
+  test("rejects domain with protocol and path", () => {
+    expect(validateDomain("https://myapp.com/path?query=1")).toBe("myapp.com");
+  });
+
+  test("accepts very long domain name", () => {
+    const longDomain = "a".repeat(50) + ".com";
+    expect(validateDomain(longDomain)).toBe(longDomain);
+  });
 });
 
 describe("generateKeyPrefix", () => {

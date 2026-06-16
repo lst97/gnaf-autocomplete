@@ -209,6 +209,19 @@ textarea {
         border-color 0.12s,
         box-shadow 0.12s;
 }
+select {
+    line-height: inherit;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding-right: 28px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2365777d'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px 6px;
+    cursor: pointer;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -247,6 +260,23 @@ textarea::placeholder {
 }
 .btn:active {
     transform: translateY(1px);
+}
+.btn.is-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.7;
+}
+.btn.is-loading::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
 }
 .btn-sm {
     font-size: var(--fs-xs);
@@ -289,6 +319,9 @@ textarea::placeholder {
 .btn-tier.tier-0c {
     border-left-color: var(--yellow);
 }
+.btn-tier.tier-0b {
+    border-left-color: var(--violet);
+}
 .btn-tier.tier-1 {
     border-left-color: var(--red);
 }
@@ -303,6 +336,18 @@ textarea::placeholder {
 }
 .btn-tier.tier-typo {
     border-left-color: var(--orange);
+}
+
+.tier-section-heading {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: var(--sp-3) 0 var(--sp-1);
+}
+.tier-section-heading:first-child {
+    margin-top: 0;
 }
 
 .tier-group {
@@ -463,6 +508,26 @@ td code {
 .ac-input::placeholder {
     color: var(--base1);
 }
+
+/* Pagination controls */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-3);
+    padding: var(--sp-3) 0 0;
+}
+.pagination .page-info {
+    font-size: var(--fs-sm);
+    color: var(--muted);
+}
+.pagination button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+
+
 .ac-dropdown {
     position: absolute;
     top: 100%;
@@ -541,6 +606,7 @@ td code {
     font-size: var(--fs-xs);
     color: var(--muted);
     margin-bottom: var(--sp-2);
+    margin-top: var(--sp-2);
     padding: 6px 10px;
     background: var(--surface-2);
     border-radius: var(--r-sm);
@@ -1168,4 +1234,76 @@ details[open] summary {
         text-align: center;
         min-width: 0;
     }
+}
+
+/* ============================================================
+ * Version check badge + modal
+ * ============================================================ */
+.version-badge {
+    display: inline-block;
+    background: var(--green);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    vertical-align: middle;
+    margin-left: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    transition: opacity 0.15s;
+}
+.version-badge:hover {
+    opacity: 0.85;
+}
+.version-current {
+    display: inline-block;
+    color: var(--green);
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* Modal overlay */
+.update-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.update-modal-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    padding: 24px 28px;
+    max-width: 440px;
+    width: 90%;
+}
+.update-modal-card h2 {
+    margin: 0 0 8px;
+    font-size: 1.1rem;
+    color: var(--heading);
+}
+.update-modal-card p {
+    margin: 0 0 4px;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+.update-modal-versions {
+    font-weight: 600;
+    font-size: 1rem;
+    margin: 12px 0 16px;
+    color: var(--heading);
+}
+.update-modal-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 16px;
 }

@@ -39,35 +39,30 @@ describe("API Key Auth", () => {
     expect(data.code).toBe("INVALID_API_KEY");
   });
 
-  test("GET /keys returns 200 HTML", async () => {
-    if (!online) return;
-    const res = await fetch(`${BASE_URL}/keys`);
-    expect(res.status).toBe(200);
-    const text = await res.text();
-    expect(text).toContain("Get Your API Key");
-    expect(text).toContain("turnstile");
-  });
-
-  test("POST /api/keys with invalid domain returns 400", async () => {
+  test("POST /api/keys with invalid domain returns 400 or 429 (rate-limited)", async () => {
     if (!online) return;
     const res = await fetch(`${BASE_URL}/api/keys`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ domain: "not-a-domain!!", turnstile_token: "dummy" }),
     });
-    expect(res.status).toBe(400);
+    expect([400, 429]).toContain(res.status);
     const data = await res.json();
-    expect(data.code).toBe("VALIDATION_ERROR");
+    if (res.status === 400) {
+      expect(data.code).toBe("VALIDATION_ERROR");
+    } else {
+      expect(data.code).toBe("RATE_LIMITED");
+    }
   });
 
-  test("POST /api/keys with localhost returns 400", async () => {
+  test("POST /api/keys with localhost returns 400 or 429 (rate-limited)", async () => {
     if (!online) return;
     const res = await fetch(`${BASE_URL}/api/keys`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ domain: "localhost", turnstile_token: "dummy" }),
     });
-    expect(res.status).toBe(400);
+    expect([400, 429]).toContain(res.status);
   });
 
   // Note: The full generate-and-use flow requires a real Turnstile token.

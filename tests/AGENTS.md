@@ -1,18 +1,21 @@
 # tests
 
-bun:test — unit (no DB) + integration (live API).
+bun:test — unit (no DB) + integration (live API) + fixture + db.
 
 ## OVERVIEW
 Unit tests import source functions directly and assert on return values.
 Integration tests hit the live API at `API_URL` and skip if `/healthz` is down.
-All tests use `bun:test` (not Jest, not Mocha).
+All tests use `bun:test` (not Jest, not Mocha). Total: **476 tests** (417
+unit + 59 integration), **0 failures** as of the last run.
 
 ## STRUCTURE
 | Path | Purpose |
 |------|---------|
-| `unit/*.test.ts` | Isolated function tests — no DB, no network (9 files) |
+| `unit/*.test.ts` | Isolated function tests — no DB, no network (17 files) |
 | `integration/api.test.ts` | Live API tests — skips if `/healthz` is down |
-| `fixtures/*.psv` | Pipe-delimited test data (5 files: state, locality, street_locality, addresses, geocode) |
+| `fixture/autocomplete.test.ts` | Validates the JSON test fixture (1K edge-case addresses from `address_search_mv`) |
+| `db/integration-suite.test.ts`, `db/full-pipeline.test.ts` | Tests that require a live DB connection |
+| `fixtures/addresses.json` | JSON test data: 1,000 edge-case-rich addresses across all 9 states |
 
 ## WHERE TO LOOK
 - **Add unit test**: drop `.test.ts` next to source logic → `bun:test` discovers it
@@ -28,13 +31,13 @@ All tests use `bun:test` (not Jest, not Mocha).
 - **API online check**: `apiOnline()` polls `/healthz` before integration tests; tests skip if API down
 - **Timeout**: 3000ms default; uses `AbortSignal.timeout()` for fetch
 - **Cache key format**: `buildSuggestKey(q, state, postcode, limit)` → `"main st|NSW|2000|10"` (pipe-separated)
-- **Fixture format**: PSV (pipe-delimited), header row required, `tests/fixtures/<table>.psv`
+- **Fixture format**: JSON, loaded via `readFileSync` in `tests/fixture/autocomplete.test.ts` (was PSV in older versions, now JSON since addresses are pulled from the live MV)
 
 ## ANTI-PATTERNS
 - **NEVER** mock the DB — test the real query router; if tests need DB data, document it
 - **NEVER** use `test.each` / `describe.each` — Bun's runner is fine without it; keep individual `test()` blocks
 - **NEVER** add tests that depend on external network (other than the local API)
-- **NEVER** commit test fixtures with PII — only synthetic test data
+- **NEVER** commit test fixtures with PII — only synthetic test data (the JSON fixture is built from the live `address_search_mv`)
 
 ## GOTCHAS
 - Integration tests connect to `API_URL` env var (default `http://localhost:8000`)
@@ -47,3 +50,5 @@ All tests use `bun:test` (not Jest, not Mocha).
 - Errors tests assert `instanceof Error` for `AppError` subclasses (see `tests/unit/errors.test.ts:23`)
 - Integration test for `q < 2 chars` expects HTTP 400 (Elysia validation)
 - Integration tests check `Cache-Control: public` AND `X-Request-Id` header presence
+- Fixture is 1K addresses, 662KB JSON, NOT 17MB PSV (older docs were wrong)
+- The 509 test count claim in older docs was wrong — actual is 476 (417 unit + 59 integration)
