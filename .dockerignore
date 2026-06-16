@@ -1,61 +1,63 @@
-# dependencies
-node_modules
-**/node_modules
+# ============================================================
+# Docker build context — exclude everything except what the
+# API image needs at runtime: src/, scripts/, sql/, pages/,
+# package.json, bun.lock, tsconfig.json.
+# ============================================================
 
-# build artifacts
-out
-dist
-*.tgz
-*.tsbuildinfo
-
-# tests
-tests
-**/*.test.ts
-**/*.spec.ts
-coverage
-*.lcov
-
-# benchmarks
-benchmark
-
-# logs
-logs
-*.log
-
-# caches
-.eslintcache
-.cache
-.bun
-
-# IDE
-.idea
-.vscode
-
-# OS
-.DS_Store
-Thumbs.db
-
-# git
+# Git + CI
 .git
-.gitignore
 .github
+.gitignore
+.husky
 
-# docker
-Dockerfile
-docker-compose.yml
-.dockerignore
-
-# docs (not needed in image)
-*.md
-README.md
-
-# env files
+# Local dev config (AI tools, IDE, env)
 .env
 .env.*
 !.env.example
+.omo
+.opencode
+.codegraph
+openspec
+.idea
+.vscode
+.DS_Store
 
-# sql data (loaded via volume, not bundled)
-sql/data
+# Dependencies (installed via bun install in Dockerfile)
+node_modules
 
-# tmp
+# Build artifacts
+dist
+out
+*.tgz
+*.tsbuildinfo
+
+# Tests + benchmarks (not needed in production image)
+tests
+benchmark
+coverage
+*.lcov
+*.test.ts
+*.spec.ts
+
+# Docs (not needed at runtime)
+*.md
+AGENTS.md
+README.md
+SECURITY.md
+LICENSE
+
+# Docker host config (not needed inside the image)
+docker-compose.yml
+Dockerfile
+.dockerignore
+postgresql.conf
+biome.json
+
+# Logs + caches
+*.log
+logs
+.eslintcache
+.cache
+.bun
 tmp
+

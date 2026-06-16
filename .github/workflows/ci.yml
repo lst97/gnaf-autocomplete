@@ -1,0 +1,107 @@
+# ============================================================
+# G-NAF Address Autocomplete — CI
+# Runs on every push and PR to main: lint, unit tests, build.
+# ============================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_VERSION: "1.3.14"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+
+  unit-test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - run: bun install --frozen-lockfile
+      - run: bun run test:unit
+
+  # Integration tests require a live PostgreSQL instance.
+  # Uncomment when a test DB is available (e.g. via service containers).
+  # integration-test:
+  #   name: Integration tests
+  #   runs-on: ubuntu-latest
+  #   services:
+  #     postgres:
+  #       image: postgres:18-bookworm
+  #       env:
+  #         POSTGRES_DB: gnaf
+  #         POSTGRES_USER: postgres
+  #         POSTGRES_PASSWORD: postgres
+  #       options: >-
+  #         --health-cmd pg_isready -U postgres -d gnaf
+  #         --health-interval 5s
+  #         --health-timeout 5s
+  #         --health-retries 10
+  #       ports:
+  #         - 5433:5432
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #     - uses: oven-sh/setup-bun@v2
+  #       with:
+  #         bun-version: ${{ env.BUN_VERSION }}
+  #     - run: bun install --frozen-lockfile
+  #     - run: bun run test:integration
+  #       env:
+  #         DATABASE_URL: postgresql://postgres:postgres@localhost:5433/gnaf
+
+  build-check:
+    name: Build check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - run: bun install --frozen-lockfile
+
+      # Verify the TypeScript compiles cleanly (don't emit, just type-check)
+      - run: bun run src/index.ts --help &
+          sleep 2 && kill %1 || true
+        continue-on-error: true

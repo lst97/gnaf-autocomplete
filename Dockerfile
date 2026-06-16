@@ -12,23 +12,23 @@ WORKDIR /app
 
 # Install prod deps first (best layer caching — only invalidates on lockfile change)
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+  bun install --frozen-lockfile --production
 
 # Copy source + static assets
 COPY src/ src/
 COPY scripts/ scripts/
 COPY sql/ sql/
 COPY pages/ pages/
-COPY tsconfig.json ./
 
 # ---------- Runtime ----------
 FROM oven/bun:1.3.14-alpine AS runtime
 
-# Healthcheck dependency (Alpine ships wget, but curl is needed for the
-# healthcheck defined below — tiny, ~50KB)
+# Install runtime tools + create non-root user in one RUN
 RUN apk add --no-cache curl \
     && addgroup -S -g 1001 appuser \
-    && adduser -S -G appuser -u 1001 -D -H appuser
+    && adduser -S -G appuser -u 1001 -D -H appuser \
+    && rm -rf /var/cache/apk/*
 
 WORKDIR /app
 
@@ -39,7 +39,8 @@ USER appuser
 EXPOSE 8000
 
 # Bake healthcheck into the image so it works without docker-compose
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=10s \
+# start-period accounts for ts startup + DB connection retry
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=15s \
   CMD curl -fsS http://localhost:8000/healthz || exit 1
 
 CMD ["bun", "run", "src/index.ts"]

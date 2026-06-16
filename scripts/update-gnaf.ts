@@ -12,7 +12,7 @@
  *   bun run scripts/update-gnaf.ts --version "AUG 2026"  # override version
  */
 
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, unlinkSync } from "node:fs";
 import { getSql } from "../src/db/client";
 import { env } from "../src/env";
 import {
@@ -21,12 +21,18 @@ import {
   parseGnafReleasePage,
   setCurrentVersionInDb,
 } from "../src/lib/version-check";
-
-// ── Config ──
-
-const LOCKFILE = "/tmp/.gnaf-update.lock";
-const DATA_GOV_AU_URL = "https://data.gov.au/data/dataset/geocoded-national-address-file-g-naf";
-const DOTENV_PATH = ".env";
+import {
+  acquireLock,
+  checkDiskSpace,
+  cleanupTempFiles,
+  downloadFile,
+  extractZip,
+  promptUser,
+  readDotEnv,
+  releaseLock,
+  verifyZip,
+  writeDotEnv,
+} from "./lib/gnaf-download";
 
 // ── Argument parsing ──
 
@@ -35,110 +41,21 @@ const isDryRun = args.includes("--dry-run") || args.includes("--dryrun");
 const isYes = args.includes("--yes") || args.includes("-y");
 const versionOverride =
   args.find((a) => a.startsWith("--version="))?.split("=")[1] ??
-  args[args.indexOf("--version") + 1] ??
+  (() => {
+    const idx = args.indexOf("--version");
+    return idx !== -1 && idx + 1 < args.length ? args[idx + 1] : null;
+  })() ??
   null;
 
-// ── Lockfile ──
-
-function acquireLock(): void {
-  if (existsSync(LOCKFILE)) {
-    console.error("Another update is already in progress (lockfile exists)");
-    process.exit(1);
-  }
-  if (isDryRun) return;
-  writeFileSync(LOCKFILE, String(process.pid), "utf-8");
-}
-
-function releaseLock(): void {
-  try {
-    if (existsSync(LOCKFILE)) unlinkSync(LOCKFILE);
-  } catch {
-    // ignore
-  }
-}
-
-function cleanupTempFiles(): void {
-  // Clean up any .part files in /tmp
-  const { readdirSync } = require("node:fs") as typeof import("fs");
-  try {
-    const files = readdirSync("/tmp");
-    for (const f of files) {
-      if (f.startsWith("gnaf-download-") && f.endsWith(".part")) {
-        try {
-          unlinkSync(`/tmp/${f}`);
-          console.log(`Cleaned up temp file: /tmp/${f}`);
-        } catch {
-          // ignore
-        }
-      }
-    }
-  } catch {
-    // ignore
-  }
-}
+const DOTENV_PATH = ".env";
 
 function cleanup(): void {
   releaseLock();
   cleanupTempFiles();
 }
 
-process.on("SIGINT", () => {
-  cleanup();
-  process.exit(130);
-});
-process.on("SIGTERM", () => {
-  cleanup();
-  process.exit(143);
-});
-
-// ── Helper: read .env ──
-
-function readDotEnv(): Record<string, string> {
-  const content = readFileSync(DOTENV_PATH, "utf-8");
-  const vars: Record<string, string> = {};
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    const value = trimmed.slice(eqIdx + 1).trim();
-    // Remove surrounding quotes if present
-    vars[key] = value.replace(/^["']|["']$/g, "");
-  }
-  return vars;
-}
-
-function writeDotEnv(vars: Record<string, string>): void {
-  let content = readFileSync(DOTENV_PATH, "utf-8");
-  const original = content;
-
-  for (const [key, value] of Object.entries(vars)) {
-    const escapedValue = value.includes(" ") ? `"${value}"` : value;
-    // Replace existing key or append
-    const regex = new RegExp(`^${key}=.*$`, "m");
-    if (regex.test(content)) {
-      content = content.replace(regex, `${key}=${escapedValue}`);
-    } else {
-      content += `\n${key}=${escapedValue}`;
-    }
-  }
-
-  writeFileSync(DOTENV_PATH, content, "utf-8");
-
-  // Show diff
-  console.log("\n.env changes:");
-  const origLines = original.split("\n");
-  const newLines = content.split("\n");
-  for (const [key, _value] of Object.entries(vars)) {
-    const oldLine = origLines.find((l) => l.startsWith(`${key}=`));
-    const newLine = newLines.find((l) => l.startsWith(`${key}=`));
-    if (oldLine !== newLine) {
-      console.log(`  - ${oldLine ?? `# ${key} (was unset)`}`);
-      console.log(`  + ${newLine}`);
-    }
-  }
-}
+process.on("SIGINT", () => { cleanup(); process.exit(130); });
+process.on("SIGTERM", () => { cleanup(); process.exit(143); });
 
 // ── Main ──
 
@@ -152,7 +69,12 @@ async function main(): Promise<void> {
     // ── Step 1: Detect current version ──
     const currentDotEnv = readDotEnv();
     const currentVersion = currentDotEnv.GNAF_VERSION || env.GNAF_VERSION || "MAY 2026";
-    const currentDataDir = currentDotEnv.GNAF_DATA_DIR || env.GNAF_DATA_DIR || "";
+    const currentDataDir =
+      currentDotEnv.GNAF_DATA_DIR ||
+      env.GNAF_DATA_DIR ||
+      (process.env.GNAF_DATA_ROOT
+        ? `${process.env.GNAF_DATA_ROOT}/G-NAF ${currentVersion}/Standard`
+        : "");
     console.log(`Current version: ${currentVersion}`);
     console.log(`Current data dir: ${currentDataDir}`);
     console.log();
@@ -435,19 +357,6 @@ async function main(): Promise<void> {
   } finally {
     cleanup();
   }
-}
-
-// ── Simple stdin prompt ──
-
-function promptUser(question: string): Promise<string> {
-  return new Promise((resolve) => {
-    // Read a line from stdin
-    process.stdout.write(question);
-    process.stdin.once("data", (data: Buffer) => {
-      resolve(data.toString().trim());
-    });
-    process.stdin.resume();
-  });
 }
 
 main().catch((err) => {

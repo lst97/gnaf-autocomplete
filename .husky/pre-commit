@@ -1,0 +1,9 @@
+# Check if there are staged source files (ts/js/json etc.) to lint
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '\.(ts|js|mjs|cjs|jsx|tsx|json)$'; then
+	bunx biome check --staged . || exit 1
+fi
+
+# Check TypeScript compilation on staged .ts files
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '\.ts$'; then
+	bun run tsc --noEmit || exit 1
+fi

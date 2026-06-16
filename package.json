@@ -13,7 +13,7 @@
     "tsc": "tsc",
     "lint": "biome check src/",
     "format": "biome format --write src/",
-    "prepare": "husky"
+    "prepare": "command -v husky && husky || true"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",

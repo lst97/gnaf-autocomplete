@@ -61,6 +61,13 @@ services:
       # Set via .env for production; omitted locally to keep it disabled.
       # NODE_ENV: ${NODE_ENV:-development}
       PUBLIC_URL: ${PUBLIC_URL:-}     # Same-origin domain mismatch bypass
+    volumes:
+      # G-NAF data directory — only needed by the loader, not by the API runtime.
+      # The CD workflow auto-downloads data here if missing. Mounted rw so
+      # the loader can create and read PSV files. Defaults to ../gnaf-data
+      # (parent of the project root) for both local dev and production.
+      # Override via GNAF_DATA_ROOT env var.
+      - ${GNAF_DATA_ROOT:-../gnaf-data}:/opt/gnaf-data:rw
     depends_on:
       db:
         condition: service_healthy
@@ -73,7 +80,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          # 8GB required for 9-worker parallel COPY during `bun run scripts/load.ts`.
+          # Runtime API typically uses <500MB; the extra is for the loader which
+          # runs 9 concurrent COPY FROM STDIN streams for the largest states.
+          memory: 8G
 
   tunnel:
     image: cloudflare/cloudflared:latest
