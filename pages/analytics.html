@@ -216,6 +216,10 @@
                 cursor: pointer;
                 transition: opacity 0.15s;
             }
+            .seg-label {
+                font-size: var(--fs-xs);
+                color: var(--base3);
+            }
             .stacked-bar .seg:hover {
                 opacity: 0.85;
             }
@@ -406,7 +410,7 @@
         </div>
 
         <script>
-            (async function () {
+            (async () => {
                 const API = window.location.origin;
                 const PAGE_LIMIT = 10;
                 let domOffset = 0;
@@ -427,7 +431,7 @@
                     try {
                         const data = await fetchStats(domOffset);
                         render(data);
-                    } catch (err) {
+                    } catch (_err) {
                         renderError(
                             "Could not load analytics. The API may be starting up or the database may not have the api_keys table yet.",
                         );
@@ -439,7 +443,7 @@
 
                     const fmt = (n) => {
                         if (n >= 1_000_000)
-                            return (n / 1_000_000).toFixed(1) + "M";
+                            return `${(n / 1_000_000).toFixed(1)}M`;
                         if (n >= 1_000) return n.toLocaleString();
                         return String(n);
                     };
@@ -489,7 +493,7 @@
                           "#2aa198",
                           "#dc322f",
                       ];
-                      const maxReq = data.top_domains[0].requests || 1;
+                      const _maxReq = data.top_domains[0].requests || 1;
                       return `<div class="table-wrap"><table>
                 <thead>
                   <tr><th></th><th>Domain</th><th>Requests</th><th>Last Used</th></tr>
@@ -539,7 +543,7 @@
                                               ? `<span class="seg-label">${fmtReq(d.requests)}</span>`
                                               : ""
                                       }
-                                      <div class="seg-tooltip">${keyCount > 1 ? esc(k.prefix || "key" + (ki + 1)) + "… " : ""}${k.requests === 0 ? "No requests yet" : fmt(k.requests) + " req"}</div>
+                                      <div class="seg-tooltip">${keyCount > 1 ? `${esc(k.prefix || `key${ki + 1}`)}… ` : ""}${k.requests === 0 ? "No requests yet" : `${fmt(k.requests)} req`}</div>
                                     </div>
                                   `;
                                     })
@@ -584,7 +588,7 @@
                 function renderError(msg) {
                     const container = document.getElementById("stats-content");
                     container.innerHTML =
-                        '<div class="error-box">⚠ ' + esc(msg) + "</div>";
+                        `<div class="error-box">⚠ ${esc(msg)}</div>`;
                 }
 
                 function esc(s) {

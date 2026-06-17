@@ -85,31 +85,8 @@
                 <a href="/openapi" target="_blank">OpenAPI specs ↗</a> &middot;
                 <a href="/analytics">📊 Analytics</a>
             </div>
-            <div class="api-key-bar" id="apiKeyBar">
-                <label for="apiKeyInput">API Key</label>
-                <input
-                    type="text"
-                    id="apiKeyInput"
-                    placeholder="Paste your gnaf_pk_... key here"
-                    autocomplete="off"
-                    spellcheck="false"
-                />
-                <button
-                    type="button"
-                    id="apiKeySaveBtn"
-                    class="btn btn-sm btn-green"
-                >
-                    Save
-                </button>
-                <button
-                    type="button"
-                    id="apiKeyClearBtn"
-                    class="btn btn-sm btn-ghost"
-                    style="display: none"
-                >
-                    Clear
-                </button>
-                <span id="apiKeyStatus" class="api-key-status">No key set</span>
+            <div style="display:flex;align-items:center;gap:var(--sp-2);margin-top:var(--sp-2);padding:var(--sp-1) var(--sp-2);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);font-size:var(--fs-xs)">
+              <span>🔑 Set your API key in the <strong>Suggest</strong> tab above.</span>
             </div>
         </div>
 
@@ -162,10 +139,11 @@
         </div>
 
         <!-- Scripts: common.js first (shared utilities), then tab-specific modules -->
-        <script src="assets/common.js"></script>
-        <script src="assets/suggest.js"></script>
-        <script src="assets/detail.js"></script>
-        <script src="assets/system.js"></script>
-        <script src="assets/keys.js"></script>
+        <!-- data-cfasync="false" prevents Cloudflare Rocket Loader from deferring -->
+        <script data-cfasync="false" src="assets/common.js"></script>
+        <script data-cfasync="false" src="assets/suggest.js"></script>
+        <script data-cfasync="false" src="assets/detail.js"></script>
+        <script data-cfasync="false" src="assets/system.js"></script>
+        <script data-cfasync="false" src="assets/keys.js"></script>
     </body>
 </html>

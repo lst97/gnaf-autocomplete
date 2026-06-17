@@ -23,14 +23,10 @@ import {
 } from "../src/lib/version-check";
 import {
   acquireLock,
-  checkDiskSpace,
   cleanupTempFiles,
-  downloadFile,
-  extractZip,
   promptUser,
   readDotEnv,
   releaseLock,
-  verifyZip,
   writeDotEnv,
 } from "./lib/gnaf-download";
 
@@ -47,15 +43,21 @@ const versionOverride =
   })() ??
   null;
 
-const DOTENV_PATH = ".env";
+const _DOTENV_PATH = ".env";
 
 function cleanup(): void {
   releaseLock();
   cleanupTempFiles();
 }
 
-process.on("SIGINT", () => { cleanup(); process.exit(130); });
-process.on("SIGTERM", () => { cleanup(); process.exit(143); });
+process.on("SIGINT", () => {
+  cleanup();
+  process.exit(130);
+});
+process.on("SIGTERM", () => {
+  cleanup();
+  process.exit(143);
+});
 
 // ── Main ──
 

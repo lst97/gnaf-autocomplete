@@ -10,7 +10,8 @@
 #                         Generate from admin console: Settings → Auth Keys
 #   TAILSCALE_HOST       - Tailscale hostname or IP of the target machine
 #   SSH_USER             - Linux user on the target machine
-#   POSTGRES_PASSWORD    - Strong password for the DB (openssl rand -base64 32)
+#   POSTGRES_PASSWORD    - Strong password for the DB. Must be URL-safe (no @:?# chars).
+#                         Generate: openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 #   CORS_ORIGINS         - e.g. https://app.example.com
 #   PUBLIC_URL           - e.g. https://api.example.com
 #   TURNSTILE_SITE_KEY   - Cloudflare Turnstile site key
@@ -163,6 +164,11 @@ jobs:
           echo "→ Transferring postgresql.conf..."
           push_file "postgresql.conf" "postgresql.conf"
 
+          echo "→ Transferring sql/ directory..."
+          ssh ${SSH_OPTS} "${REMOTE}" "mkdir -p ${DEPLOY_DIR}/sql"
+          tar cz -C sql . | ssh ${SSH_OPTS} "${REMOTE}" "tar xz -C ${DEPLOY_DIR}/sql/"
+          echo "  ✓ sql/ transferred"
+
           echo "→ Transferring .env..."
           ssh ${SSH_OPTS} "${REMOTE}" "cat > ${DEPLOY_DIR}/.env" <<- ENVEOF
           PORT=8000
@@ -196,6 +202,7 @@ jobs:
           IMAGE="$1"
           SHA_TAG="$2"
           GNAF_DIR="$3"
+          GNAF_ROOT="$4"
           export IMAGE_TAG="${SHA_TAG}"
           echo "→ Pulling ${IMAGE}:${SHA_TAG}"
           docker compose pull api
@@ -203,19 +210,41 @@ jobs:
           PSV_COUNT=$(ls "${GNAF_DIR}"/*_ADDRESS_DETAIL_psv.psv 2>/dev/null | wc -l || echo 0)
           if [ "${PSV_COUNT}" -lt 5 ]; then
             echo "→ Downloading G-NAF data..."
-            docker compose run --rm -e GNAF_DATA_DIR="${GNAF_DIR}" \
-              api bun run scripts/create-gnaf.ts \
-              --dir "$(dirname "$(dirname "${GNAF_DIR}")")" 2>&1 || true
+            # Mount the G-NAF root so the ZIP extracts to the correct base,
+            # then the inner G-NAF/ prefix lands files at the right path.
+            docker run --rm \
+              -v "${GNAF_ROOT}":/opt/gnaf-data \
+              "${IMAGE}:${SHA_TAG}" \
+              bun run scripts/create-gnaf.ts \
+                --dir /opt/gnaf-data 2>&1 || true
           fi
           MV_ROWS=$(docker compose exec -T db psql -U postgres -d gnaf \
             -tAc "SELECT COALESCE(reltuples::int, 0) FROM pg_class WHERE relname='address_search_mv'" 2>/dev/null || echo 0)
           MV_ROWS="${MV_ROWS:-0}"
           if [ "${MV_ROWS}" -lt 1000000 ]; then
+            # Stop the API first — its connection pool competes with loader workers
+            docker compose stop api 2>/dev/null || true
             docker compose run --rm -e GNAF_DATA_DIR="${GNAF_DIR}" api bun run scripts/load.ts
           else
             echo "→ address_search_mv has ${MV_ROWS} rows — skipping load"
           fi
-          docker compose up -d --remove-orphans
+          # ── DB migration: apply additive SQL files only ──
+          # Skip destructive files that drop tables/MV with data.
+          echo "→ Checking DB schema..."
+          for f in sql/0*.sql; do
+            [ -f "$f" ] || continue
+            name=$(basename "$f" .sql)
+            # Skip destructive files that would drop data
+            case "$name" in
+              005_prewarm|005_staging|006_staging_indexes|007_mv|009_domain_verify) continue ;;
+            esac
+            # Safe files use CREATE IF NOT EXISTS / ALTER ADD COLUMN IF NOT EXISTS
+            echo "  Applying ${name}..."
+            cat "$f" | docker compose exec -T db psql -U postgres -d gnaf 2>&1 || true
+          done
+          echo "✓ Schema up to date"
+
+          docker compose --profile production up -d --remove-orphans
           for i in $(seq 1 12); do
             if curl -fsS http://localhost:8000/healthz >/dev/null 2>&1; then
               echo "✓ API healthy (attempt $i)"; break
@@ -238,13 +267,14 @@ jobs:
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
           SHA_TAG="${{ github.sha }}"
           GNAF_DIR="${{ vars.GNAF_DATA_DIR || '/opt/gnaf-data/G-NAF MAY 2026/Standard' }}"
+          GNAF_ROOT="${{ vars.GNAF_DATA_ROOT || '/opt/gnaf-data' }}"
           SSH_OPTS="-o StrictHostKeyChecking=accept-new"
           REMOTE="${{ secrets.SSH_USER }}@${{ secrets.TAILSCALE_HOST }}"
 
           echo "→ Running deploy script..."
           for i in 1 2 3; do
             if ssh ${SSH_OPTS} "${REMOTE}" \
-              "bash ${DEPLOY_DIR}/deploy.sh '${IMAGE}' '${SHA_TAG}' '${GNAF_DIR}'"; then
+              "bash ${DEPLOY_DIR}/deploy.sh '${IMAGE}' '${SHA_TAG}' '${GNAF_DIR}' '${GNAF_ROOT}'"; then
               echo "✓ Deploy succeeded (attempt ${i})"
               break
             fi

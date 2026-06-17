@@ -13,7 +13,7 @@
  *   bun run scripts/create-gnaf.ts --dry-run             # preview only
  */
 
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import {
   acquireLock,
@@ -45,37 +45,51 @@ const dirOverride =
   })() ??
   null;
 
-// Priority: --dir CLI arg > GNAF_DATA_ROOT env var > cwd
-const dataRoot = process.env.GNAF_DATA_ROOT ?? "";
+// Priority: --dir CLI arg > GNAF_DATA_ROOT env var > /opt/gnaf-data (Docker volume) > cwd
+const dataRoot =
+  process.env.GNAF_DATA_ROOT ?? (existsSync("/opt/gnaf-data") ? "/opt/gnaf-data" : "");
 
 function cleanup(): void {
   releaseLock();
   cleanupTempFiles();
 }
-process.on("SIGINT", () => { cleanup(); process.exit(130); });
-process.on("SIGTERM", () => { cleanup(); process.exit(143); });
+process.on("SIGINT", () => {
+  cleanup();
+  process.exit(130);
+});
+process.on("SIGTERM", () => {
+  cleanup();
+  process.exit(143);
+});
 
 /**
  * Scan `rootDir` for a `Standard/` directory containing G-NAF PSV files.
- * The G-NAF ZIP may extract as:
- *   G-NAF/G-NAF MAY 2026/Standard/   (with G-NAF/ prefix)
- * or directly as:
- *   G-NAF MAY 2026/Standard/         (without prefix)
- * This function finds whichever one exists.
+ * The G-NAF ZIP may extract with varying G-NAF/ prefix depths:
+ *   G-NAF/G-NAF/G-NAF MAY 2026/Standard/   (two G-NAF/ prefixes)
+ *   G-NAF/G-NAF MAY 2026/Standard/         (one G-NAF/ prefix)
+ *   G-NAF MAY 2026/Standard/               (no prefix)
+ * This function tries all known patterns from deepest to shallowest.
  */
 function findStandardDir(rootDir: string, version: string): string | null {
   const candidates = [
-    join(rootDir, version, "Standard"),
-    join(rootDir, `G-NAF ${version}`, "Standard"),
+    // Two G-NAF/ prefixes (observed in some G-NAF releases)
+    join(rootDir, "G-NAF", "G-NAF", `G-NAF ${version}`, "Standard"),
+    join(rootDir, "G-NAF", "G-NAF", version, "Standard"),
+    // One G-NAF/ prefix
     join(rootDir, "G-NAF", `G-NAF ${version}`, "Standard"),
     join(rootDir, "G-NAF", version, "Standard"),
+    // No G-NAF/ prefix
+    join(rootDir, `G-NAF ${version}`, "Standard"),
+    join(rootDir, version, "Standard"),
   ];
   for (const dir of candidates) {
     if (!existsSync(dir)) continue;
     try {
       const entries = readdirSync(dir);
       if (entries.some((e) => e.endsWith("_ADDRESS_DETAIL_psv.psv"))) return dir;
-    } catch { /* not accessible */ }
+    } catch {
+      /* not accessible */
+    }
   }
   return null;
 }
@@ -129,7 +143,7 @@ async function main(): Promise<void> {
     console.log();
 
     // ── Step 3: Determine target directory ──
-    // Priority: --dir CLI arg > GNAF_DATA_ROOT env var > cwd
+    // Priority: --dir CLI arg > GNAF_DATA_ROOT env var > /opt/gnaf-data (Docker) > cwd
     const baseDir = dirOverride ?? (dataRoot || process.cwd());
     const safeName = `G-NAF ${targetVersion}`;
     const targetDir = join(baseDir, safeName, "Standard");
@@ -145,7 +159,9 @@ async function main(): Promise<void> {
     if (isDryRun) {
       console.log("\n[DRY RUN] Would download from:", downloadUrl);
       console.log("[DRY RUN] Would extract to:", targetDir);
-      console.log(`[DRY RUN] Would set: GNAF_DATA_DIR=${targetDir} · GNAF_VERSION=${targetVersion}`);
+      console.log(
+        `[DRY RUN] Would set: GNAF_DATA_DIR=${targetDir} · GNAF_VERSION=${targetVersion}`,
+      );
       console.log("Dry run complete. No changes made.");
       cleanup();
       return;
@@ -158,7 +174,15 @@ async function main(): Promise<void> {
     // ── Step 5: Verify ──
     verifyZip(zipPath);
 
-    // ── Step 6: Extract ──
+    // ── Step 6: Clean stale extraction dirs ──
+    // Remove any G-NAF/ left by previous runs to prevent nesting
+    const staleGnaf = join(baseDir, "G-NAF");
+    if (existsSync(staleGnaf)) {
+      console.log("Removing stale G-NAF/ directory from previous extraction...");
+      rmSync(staleGnaf, { recursive: true, force: true });
+    }
+
+    // ── Step 7: Extract ──
     extractZip(zipPath, baseDir);
 
     // ── Step 7: Verify extraction ──

@@ -3,8 +3,14 @@
     <p class="card-lead">
       Start typing — results appear as you type. Click a result to look up its full details.
     </p>
+    <div class="api-key-bar" style="margin-bottom:12px">
+      <label for="suggestApiKey">API Key</label>
+      <input type="text" id="suggestApiKey" placeholder="Paste your gnaf_pk_... key here" autocomplete="off" spellcheck="false" style="flex:1;min-width:150px;font-size:var(--fs-sm);padding:5px 8px;font-family:var(--mono)">
+      <button type="button" id="suggestApiKeySave" class="btn btn-sm btn-green">Save</button>
+      <span id="suggestApiKeyStatus" style="font-family:var(--mono);font-size:var(--fs-xs)">No key set</span>
+    </div>
     <div class="ac-wrap">
-      <input class="ac-input" id="acInput" type="search" placeholder="Type an Australian address… e.g. 12 main st sydney" autofocus spellcheck="false">
+      <input class="ac-input" id="acInput" type="search" placeholder="Type an Australian address… e.g. 12 main st sydney" spellcheck="false">
       <div class="ac-dropdown" id="acDropdown"></div>
     </div>
     <div id="suggestMeta" class="meta-line">Results appear here as you type.</div>
@@ -12,9 +18,9 @@
       <tr><th>ID</th><th>Display</th><th>Suburb</th><th>State</th><th>Postcode</th><th>Score</th><th>Lat</th><th>Lon</th></tr>
     </thead><tbody></tbody></table></div>
     <div id="suggestPagination" class="pagination" style="display:none">
-      <button class="btn btn-sm pagi-prev">← Prev</button>
+      <button type="button" class="btn btn-sm pagi-prev">← Prev</button>
       <span class="page-info" id="suggestPageInfo"></span>
-      <button class="btn btn-sm pagi-next">Next →</button>
+      <button type="button" class="btn btn-sm pagi-next">Next →</button>
     </div>
   </div>
 
@@ -45,7 +51,7 @@
         <label for="soff">Offset</label>
         <input id="soff" type="number" value="0" min="0" max="1000">
       </div>
-      <button id="suggestBtn" class="btn">Search</button>
+      <button type="button" id="suggestBtn" class="btn">Search</button>
     </div>
   </div>
 
@@ -59,60 +65,60 @@
 
     <h3 class="tier-section-heading">Fast Index Lookups (tier0, postcode, tier0_number, tier0_locality)</h3>
     <div class="tier-group">
-      <button class="btn btn-sm btn-tier tier-0" data-q="sydney nsw 2000" title="State + postcode equality → tier0">tier0</button>
-      <button class="btn btn-sm btn-tier tier-0" data-q="melbourne vic 3000" title="State + postcode equality → tier0">tier0</button>
-      <button class="btn btn-sm btn-tier tier-cache" data-q="2000" title="Purely numeric 2-4 digit query → postcode tier">postcode</button>
-      <button class="btn btn-sm btn-tier tier-cache" data-q="3000" title="Purely numeric 2-4 digit query → postcode tier">postcode</button>
-      <button class="btn btn-sm btn-tier tier-0c" data-q="12 nsw" title="Number + state → tier0_number">tier0_number</button>
-      <button class="btn btn-sm btn-tier tier-0c" data-q="100 vic" title="Number + state → tier0_number">tier0_number</button>
-      <button class="btn btn-sm btn-tier tier-0b" data-q="syd nsw" title="State + locality prefix → tier0_locality">tier0_locality</button>
-      <button class="btn btn-sm btn-tier tier-0b" data-q="mel vic" title="State + locality prefix → tier0_locality">tier0_locality</button>
+      <button type="button" class="btn btn-sm btn-tier tier-0" data-q="sydney nsw 2000" title="State + postcode equality → tier0">tier0</button>
+      <button type="button" class="btn btn-sm btn-tier tier-0" data-q="melbourne vic 3000" title="State + postcode equality → tier0">tier0</button>
+      <button type="button" class="btn btn-sm btn-tier tier-cache" data-q="2000" title="Purely numeric 2-4 digit query → postcode tier">postcode</button>
+      <button type="button" class="btn btn-sm btn-tier tier-cache" data-q="3000" title="Purely numeric 2-4 digit query → postcode tier">postcode</button>
+      <button type="button" class="btn btn-sm btn-tier tier-0c" data-q="12 nsw" title="Number + state → tier0_number">tier0_number</button>
+      <button type="button" class="btn btn-sm btn-tier tier-0c" data-q="100 vic" title="Number + state → tier0_number">tier0_number</button>
+      <button type="button" class="btn btn-sm btn-tier tier-0b" data-q="syd nsw" title="State + locality prefix → tier0_locality">tier0_locality</button>
+      <button type="button" class="btn btn-sm btn-tier tier-0b" data-q="mel vic" title="State + locality prefix → tier0_locality">tier0_locality</button>
     </div>
 
     <h3 class="tier-section-heading">Street Prefix (tier1 — Common Patterns)</h3>
     <div class="tier-group">
-      <button class="btn btn-sm btn-tier tier-1" data-q="sydney" title="Single city name → tier1 (street prefix)">sydney</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="main st" title="Street + type → tier1">main st</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="george st" title="Street + type → tier1">george st</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="12 main st" title="Number + street → tier1">12 main st</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="collins st melbourne" title="Street + type + locality → tier1">collins st melbourne</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="1/6 fortuna st" title="Flat pattern 1/6 → tier1">1/6 fortuna st</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="unit 1 6 fortuna street" title="Space-separated flat → tier1">unit 1 6 fortuna</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="12 main clayton south" title="Multi-word locality → tier1">12 main clayton south</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="sydney" title="Single city name → tier1 (street prefix)">sydney</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="main st" title="Street + type → tier1">main st</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="george st" title="Street + type → tier1">george st</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="12 main st" title="Number + street → tier1">12 main st</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="collins st melbourne" title="Street + type + locality → tier1">collins st melbourne</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="1/6 fortuna st" title="Flat pattern 1/6 → tier1">1/6 fortuna st</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="unit 1 6 fortuna street" title="Space-separated flat → tier1">unit 1 6 fortuna</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="12 main clayton south" title="Multi-word locality → tier1">12 main clayton south</button>
     </div>
 
     <h3 class="tier-section-heading">Edge Cases (tier1 — Special Patterns)</h3>
     <div class="tier-group">
-      <button class="btn btn-sm btn-tier tier-1" data-q="y st" title="1-char street name → tier1 (≥1 char fix)">y st (1-char)</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="pi st" title="2-char street name → tier1">pi st (2-char)</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="sy" title="2-char 'sy' → tier1 (NOT state-corrected to SA)">sy (not SA)</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="12-MAIN-ST" title="Hyphen normalization: splits to '12 main st' → tier1">12-MAIN-ST (hyphen)</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="12-56 main st" title="Digit-digit hyphen preserved as range → tier1">12-56 main st (range)</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="4 avenue sydney" title="Street-type-named 'avenue' → tier1 (findPrefixToken fix)">4 avenue sydney</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="1 close canterbury" title="Street-type-named 'close' → tier1 (findPrefixToken fix)">1 close canterbury</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="1 a1 sydney" title="Non-alpha street prefix 'a1' → tier1">1 a1 sydney</button>
-      <button class="btn btn-sm btn-tier tier-1" data-q="1 b1 sydney" title="Non-alpha street prefix 'b1' → tier1">1 b1 sydney</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="y st" title="1-char street name → tier1 (≥1 char fix)">y st (1-char)</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="pi st" title="2-char street name → tier1">pi st (2-char)</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="sy" title="2-char 'sy' → tier1 (NOT state-corrected to SA)">sy (not SA)</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="12-MAIN-ST" title="Hyphen normalization: splits to '12 main st' → tier1">12-MAIN-ST (hyphen)</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="12-56 main st" title="Digit-digit hyphen preserved as range → tier1">12-56 main st (range)</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="4 avenue sydney" title="Street-type-named 'avenue' → tier1 (findPrefixToken fix)">4 avenue sydney</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="1 close canterbury" title="Street-type-named 'close' → tier1 (findPrefixToken fix)">1 close canterbury</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="1 a1 sydney" title="Non-alpha street prefix 'a1' → tier1">1 a1 sydney</button>
+      <button type="button" class="btn btn-sm btn-tier tier-1" data-q="1 b1 sydney" title="Non-alpha street prefix 'b1' → tier1">1 b1 sydney</button>
     </div>
 
     <h3 class="tier-section-heading">Typo Corrector (typo_corrected → tier1, state-only → tier0)</h3>
     <div class="tier-group">
-      <button class="btn btn-sm btn-tier tier-typo" data-q="gresfodr" title="Extra-char typo: gresfo‹d›r → gresford">gresfodr → gresford</button>
-      <button class="btn btn-sm btn-tier tier-typo" data-q="gresfrod" title="Swapped-char typo: gresf‹ro›d → gresford">gresfrod → gresford</button>
-      <button class="btn btn-sm btn-tier tier-typo" data-q="31 gresfodr" title="Typo with house number → tier1">31 gresfodr → gresford</button>
-      <button class="btn btn-sm btn-tier tier-typo" data-q="sydneey" title="Extra-char locality: sydne‹e›y → sydney">sydneey → sydney</button>
-      <button class="btn btn-sm btn-tier tier-typo" data-q="melbourn" title="Missing-char locality: melbourn‹e› → melbourne">melbourn → melbourne</button>
-      <button class="btn btn-sm btn-tier tier-typo" data-q="31 main st wntirna" title="Locality typo: w‹a›ntirna → wantirna">wntirna (locality)</button>
-      <button class="btn btn-sm btn-tier tier-typo" data-q="sydney nswq" title="State typo: nsw‹q› → NSW in query context">nswq (state in context)</button>
-      <button class="btn btn-sm btn-tier tier-typo" data-q="sydney nzw" title="Substitution typo: n‹z›w → NSW in query context">nzw (state in context)</button>
+      <button type="button" class="btn btn-sm btn-tier tier-typo" data-q="gresfodr" title="Extra-char typo: gresfo‹d›r → gresford">gresfodr → gresford</button>
+      <button type="button" class="btn btn-sm btn-tier tier-typo" data-q="gresfrod" title="Swapped-char typo: gresf‹ro›d → gresford">gresfrod → gresford</button>
+      <button type="button" class="btn btn-sm btn-tier tier-typo" data-q="31 gresfodr" title="Typo with house number → tier1">31 gresfodr → gresford</button>
+      <button type="button" class="btn btn-sm btn-tier tier-typo" data-q="sydneey" title="Extra-char locality: sydne‹e›y → sydney">sydneey → sydney</button>
+      <button type="button" class="btn btn-sm btn-tier tier-typo" data-q="melbourn" title="Missing-char locality: melbourn‹e› → melbourne">melbourn → melbourne</button>
+      <button type="button" class="btn btn-sm btn-tier tier-typo" data-q="31 main st wntirna" title="Locality typo: w‹a›ntirna → wantirna">wntirna (locality)</button>
+      <button type="button" class="btn btn-sm btn-tier tier-typo" data-q="sydney nswq" title="State typo: nsw‹q› → NSW in query context">nswq (state in context)</button>
+      <button type="button" class="btn btn-sm btn-tier tier-typo" data-q="sydney nzw" title="Substitution typo: n‹z›w → NSW in query context">nzw (state in context)</button>
     </div>
 
     <h3 class="tier-section-heading">Invalid / No-Result Queries</h3>
     <div class="tier-group">
-      <button class="btn btn-sm btn-tier tier-2" data-q="12 34 56 test street" title="3+ consecutive numbers → 0 results (normalizer)">12 34 56 test street</button>
-      <button class="btn btn-sm btn-tier tier-2" data-q="12 34 56" title="All numbers, 3+ tokens → 0 results (normalizer)">12 34 56</button>
-      <button class="btn btn-sm btn-tier tier-2" data-q="12 34 56 78" title="4 all-number tokens → 0 results (normalizer)">12 34 56 78</button>
-      <button class="btn btn-sm btn-tier tier-2" data-q="unit 12 34 56 test" title="Flat + 3 consecutive numbers → 0 results (normalizer)">unit 12 34 56 test</button>
-      <button class="btn btn-sm btn-tier tier-2" data-q="asdfghjkl" title="Gibberish → 0 results (tier1, no match)">asdfghjkl</button>
-      <button class="btn btn-sm btn-tier tier-2" data-q="1234567890" title="10-digit number → 400 (schema validation)">1234567890</button>
+      <button type="button" class="btn btn-sm btn-tier tier-2" data-q="12 34 56 test street" title="3+ consecutive numbers → 0 results (normalizer)">12 34 56 test street</button>
+      <button type="button" class="btn btn-sm btn-tier tier-2" data-q="12 34 56" title="All numbers, 3+ tokens → 0 results (normalizer)">12 34 56</button>
+      <button type="button" class="btn btn-sm btn-tier tier-2" data-q="12 34 56 78" title="4 all-number tokens → 0 results (normalizer)">12 34 56 78</button>
+      <button type="button" class="btn btn-sm btn-tier tier-2" data-q="unit 12 34 56 test" title="Flat + 3 consecutive numbers → 0 results (normalizer)">unit 12 34 56 test</button>
+      <button type="button" class="btn btn-sm btn-tier tier-2" data-q="asdfghjkl" title="Gibberish → 0 results (tier1, no match)">asdfghjkl</button>
+      <button type="button" class="btn btn-sm btn-tier tier-2" data-q="1234567890" title="10-digit number → 400 (schema validation)">1234567890</button>
     </div>
   </div>

@@ -11,7 +11,7 @@ export const env = createEnv({
     PUBLIC_URL: z.string().default(""),
 
     // ── PostgreSQL ──
-    DATABASE_URL: z.string().url().default("postgresql://postgres:postgres@localhost:5433/gnaf"),
+    DATABASE_URL: z.string().default("postgresql://postgres:postgres@localhost:5433/gnaf"),
     DATABASE_URL_READWRITE: z.string().url().optional(),
     POOL_SIZE: z.coerce.number().int().min(1).max(100).default(10),
 

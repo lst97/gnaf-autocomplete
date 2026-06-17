@@ -13,32 +13,113 @@
  * Output: tests/fixtures/addresses.json (~300-500KB)
  */
 
-import { mkdirSync, statSync, writeFileSync } from "fs";
-import { join } from "path";
-import { getSql, closeDb } from "../src/db/client";
+import { mkdirSync, statSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { closeDb, getSql } from "../src/db/client";
 
 const OUT_DIR = join(import.meta.dirname, "..", "tests", "fixtures");
 const OUT_FILE = join(OUT_DIR, "addresses.json");
 
 const STREET_TYPE_LC = new Set([
-  "st","street","rd","road","dr","drive","av","ave","avenue",
-  "ct","court","crt","pl","place","ln","lane","cl","close",
-  "cr","cres","crescent","tce","terrace","cct","circuit",
-  "pde","parade","gr","grove","bvd","blvd","boulevard",
-  "hwy","highway","pkwy","parkway","esp","esplanade",
-  "tr","trl","trail","tk","track","way","rise","row",
-  "cir","circle","loop","walk",
+  "st",
+  "street",
+  "rd",
+  "road",
+  "dr",
+  "drive",
+  "av",
+  "ave",
+  "avenue",
+  "ct",
+  "court",
+  "crt",
+  "pl",
+  "place",
+  "ln",
+  "lane",
+  "cl",
+  "close",
+  "cr",
+  "cres",
+  "crescent",
+  "tce",
+  "terrace",
+  "cct",
+  "circuit",
+  "pde",
+  "parade",
+  "gr",
+  "grove",
+  "bvd",
+  "blvd",
+  "boulevard",
+  "hwy",
+  "highway",
+  "pkwy",
+  "parkway",
+  "esp",
+  "esplanade",
+  "tr",
+  "trl",
+  "trail",
+  "tk",
+  "track",
+  "way",
+  "rise",
+  "row",
+  "cir",
+  "circle",
+  "loop",
+  "walk",
 ]);
 const FLAT_TYPE_LC = new Set([
-  "u","unit","apt","apartment","f","flat","sh","shop","ste","suite",
-  "ph","penthouse","th","townhouse","tnhs","ofc","office","vl","vlla","villa",
-  "rm","r","l","level","lot","site","carpark","hse","house","bldg","building",
-  "duplex","fl","floor",
+  "u",
+  "unit",
+  "apt",
+  "apartment",
+  "f",
+  "flat",
+  "sh",
+  "shop",
+  "ste",
+  "suite",
+  "ph",
+  "penthouse",
+  "th",
+  "townhouse",
+  "tnhs",
+  "ofc",
+  "office",
+  "vl",
+  "vlla",
+  "villa",
+  "rm",
+  "r",
+  "l",
+  "level",
+  "lot",
+  "site",
+  "carpark",
+  "hse",
+  "house",
+  "bldg",
+  "building",
+  "duplex",
+  "fl",
+  "floor",
 ]);
-const VALID_STATES = new Set(["act","nsw","nt","qld","sa","tas","vic","wa","ot"]);
+const VALID_STATES = new Set(["act", "nsw", "nt", "qld", "sa", "tas", "vic", "wa", "ot"]);
 const CORRECTOR_TARGETS = new Set([
-  "gresford","sydney","wantirna","yarralumla","yarragon",
-  "strathmore","brighton","camberwell","toorak","malvern",
+  "gresford",
+  "sydney",
+  "wantirna",
+  "yarralumla",
+  "yarragon",
+  "strathmore",
+  "brighton",
+  "camberwell",
+  "toorak",
+  "malvern",
 ]);
 
 async function main() {
@@ -48,11 +129,14 @@ async function main() {
   const conflictStreets: string[] = [];
   const correctorStreets: string[] = [];
 
-  const rows = await sql`SELECT DISTINCT street_lc FROM address_search_mv` as Array<{ street_lc: string }>;
+  const rows = (await sql`SELECT DISTINCT street_lc FROM address_search_mv`) as Array<{
+    street_lc: string;
+  }>;
   for (const { street_lc } of rows) {
     const sn = (street_lc || "").toLowerCase();
     if (sn.length <= 2) shortStreets.push(sn);
-    if (STREET_TYPE_LC.has(sn) || FLAT_TYPE_LC.has(sn) || VALID_STATES.has(sn)) conflictStreets.push(sn);
+    if (STREET_TYPE_LC.has(sn) || FLAT_TYPE_LC.has(sn) || VALID_STATES.has(sn))
+      conflictStreets.push(sn);
     if (CORRECTOR_TARGETS.has(sn)) correctorStreets.push(sn);
   }
   console.log(`Distinct streets: ${rows.length}`);
@@ -69,7 +153,7 @@ async function main() {
       SELECT address_detail_pid, display, street_lc, locality_lc,
              locality, number_first, state, postcode, confidence, lat, lon
       FROM address_search_mv
-      WHERE street_lc LIKE ${prefix + "%"}
+      WHERE street_lc LIKE ${`${prefix}%`}
       LIMIT ${limit * 3}
     `;
     for (const row of r) {
@@ -125,7 +209,7 @@ async function main() {
   console.log(`  flat addresses: ${flatCount}`);
 
   // Phase 5: state spread
-  for (const state of ["ACT","NSW","NT","OT","QLD","SA","TAS","VIC","WA"]) {
+  for (const state of ["ACT", "NSW", "NT", "OT", "QLD", "SA", "TAS", "VIC", "WA"]) {
     const sRows = await sql`
       SELECT address_detail_pid, display, street_lc, locality_lc,
              locality, number_first, state, postcode, confidence, lat, lon
@@ -211,4 +295,7 @@ async function main() {
   await closeDb();
 }
 
-main().catch((err) => { console.error(err); process.exit(1); });
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

@@ -3,7 +3,7 @@
 # G-NAF Address Autocomplete — optimized Bun image
 # - Pinned to oven/bun:1.3.14-alpine (~80MB vs ~200MB Debian)
 # - Builder stage: install prod deps only
-# - Runtime stage: distroless-style with non-root user + healthcheck
+# - Runtime stage: non-root user via entrypoint + healthcheck
 # ============================================================
 
 # ---------- Builder ----------
@@ -25,7 +25,7 @@ COPY pages/ pages/
 FROM oven/bun:1.3.14-alpine AS runtime
 
 # Install runtime tools + create non-root user in one RUN
-RUN apk add --no-cache curl \
+RUN apk add --no-cache curl unzip su-exec \
     && addgroup -S -g 1001 appuser \
     && adduser -S -G appuser -u 1001 -D -H appuser \
     && rm -rf /var/cache/apk/*
@@ -35,7 +35,11 @@ WORKDIR /app
 # Pull built artifact from builder
 COPY --from=builder --chown=appuser:appuser /app /app
 
-USER appuser
+# Entrypoint: runs as root, fixes volume permissions, drops to appuser
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
+
 EXPOSE 8000
 
 # Bake healthcheck into the image so it works without docker-compose

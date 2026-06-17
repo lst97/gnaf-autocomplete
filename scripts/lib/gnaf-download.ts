@@ -20,7 +20,11 @@ export function acquireLock(dryRun: boolean): void {
 }
 
 export function releaseLock(): void {
-  try { if (existsSync(LOCKFILE)) unlinkSync(LOCKFILE); } catch { /* ignore */ }
+  try {
+    if (existsSync(LOCKFILE)) unlinkSync(LOCKFILE);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function cleanupTempFiles(): void {
@@ -28,10 +32,16 @@ export function cleanupTempFiles(): void {
   try {
     for (const f of readdirSync("/tmp")) {
       if (f.startsWith("gnaf-download-") && f.endsWith(".part")) {
-        try { unlinkSync(`/tmp/${f}`); } catch { /* ignore */ }
+        try {
+          unlinkSync(`/tmp/${f}`);
+        } catch {
+          /* ignore */
+        }
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 // ── .env helpers ──
@@ -45,7 +55,10 @@ export function readDotEnv(path = ".env"): Record<string, string> {
       if (!t || t.startsWith("#")) continue;
       const eq = t.indexOf("=");
       if (eq === -1) continue;
-      vars[t.slice(0, eq).trim()] = t.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+      vars[t.slice(0, eq).trim()] = t
+        .slice(eq + 1)
+        .trim()
+        .replace(/^["']|["']$/g, "");
     }
     return vars;
   } catch {
@@ -54,17 +67,32 @@ export function readDotEnv(path = ".env"): Record<string, string> {
 }
 
 export function writeDotEnv(updates: Record<string, string>, path = ".env"): void {
-  let content = readFileSync(path, "utf-8");
+  let content: string;
+  try {
+    content = readFileSync(path, "utf-8");
+  } catch {
+    content = "";
+  }
   const original = content;
   for (const [key, value] of Object.entries(updates)) {
     const v = value.includes(" ") ? `"${value}"` : value;
     const re = new RegExp(`^${key}=.*$`, "m");
-    content = re.test(content) ? content.replace(re, `${key}=${v}`) : content + `\n${key}=${v}`;
+    content = re.test(content) ? content.replace(re, `${key}=${v}`) : `${content}\n${key}=${v}`;
   }
-  writeFileSync(path, content, "utf-8");
-  for (const [key, value] of Object.entries(updates)) {
-    const old = original.split("\n").find(l => l.startsWith(`${key}=`));
-    console.log(`  ${old ?? `# ${key} (unset)`} → ${key}=${value}`);
+  try {
+    writeFileSync(path, content, "utf-8");
+    for (const [key, value] of Object.entries(updates)) {
+      const old = original.split("\n").find((l) => l.startsWith(`${key}=`));
+      console.log(`  ${old ?? `# ${key} (unset)`} → ${key}=${value}`);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`  Cannot update ${path}: ${msg}`);
+    console.warn(
+      `  Set manually: ${Object.entries(updates)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(", ")}`,
+    );
   }
 }
 
@@ -81,7 +109,8 @@ export async function downloadFile(url: string, destZip: string): Promise<void> 
   const writer = Bun.file(partPath).writer();
   const reader = resp.body?.getReader();
   if (!reader) throw new Error("No response body");
-  let dl = 0, lastLog = 0;
+  let dl = 0,
+    lastLog = 0;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -107,12 +136,20 @@ export function verifyZip(zipPath: string): void {
   console.log("Verifying ZIP...");
   const r = Bun.spawnSync(["unzip", "-l", zipPath], { stdio: ["ignore", "pipe", "pipe"] });
   if (r.exitCode !== 0) {
-    try { unlinkSync(zipPath); } catch { /* ignore */ }
+    try {
+      unlinkSync(zipPath);
+    } catch {
+      /* ignore */
+    }
     throw new Error(`Invalid ZIP (exit ${r.exitCode})`);
   }
   const listing = r.stdout?.toString() ?? "";
   if (!/_ADDRESS_DETAIL_psv\.psv/i.test(listing)) {
-    try { unlinkSync(zipPath); } catch { /* ignore */ }
+    try {
+      unlinkSync(zipPath);
+    } catch {
+      /* ignore */
+    }
     throw new Error("ZIP missing ADDRESS_DETAIL_psv.psv files");
   }
   console.log("ZIP verified.");
@@ -123,8 +160,14 @@ export function verifyZip(zipPath: string): void {
 export function extractZip(zipPath: string, destDir: string): void {
   console.log("Extracting...");
   if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
-  const r = Bun.spawnSync(["unzip", "-o", zipPath, "-d", destDir], { stdio: ["ignore", "pipe", "pipe"] });
-  if (r.exitCode !== 0) throw new Error(`Extraction failed (exit ${r.exitCode})`);
+  const r = Bun.spawnSync(["unzip", "-o", zipPath, "-d", destDir], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const stderr = r.stderr?.toString().trim();
+  if (r.exitCode !== 0) {
+    if (stderr) console.error("unzip stderr:", stderr);
+    throw new Error(`Extraction failed (exit ${r.exitCode})`);
+  }
   console.log("Extraction complete.");
 }
 
@@ -157,7 +200,10 @@ export function promptUser(question: string): Promise<string> {
 
 const DATA_GOV_AU = "https://data.gov.au/data/dataset/geocoded-national-address-file-g-naf";
 
-export interface GnafReleaseInfo { version: string; downloadUrl: string }
+export interface GnafReleaseInfo {
+  version: string;
+  downloadUrl: string;
+}
 
 export async function fetchLatestRelease(): Promise<GnafReleaseInfo> {
   const { parseGnafReleasePage } = await import("../../src/lib/version-check");
@@ -165,5 +211,5 @@ export async function fetchLatestRelease(): Promise<GnafReleaseInfo> {
   if (!resp.ok) throw new Error(`data.gov.au HTTP ${resp.status}`);
   const parsed = parseGnafReleasePage(await resp.text());
   if (!parsed) throw new Error("Could not parse data.gov.au release page");
-  return { version: parsed.latestVersion, downloadUrl: parsed.downloadUrl };
+  return { version: parsed.version, downloadUrl: parsed.downloadUrl };
 }

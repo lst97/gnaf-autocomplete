@@ -162,11 +162,7 @@ function psvLineToCopyLine(line: string, indices: number[]): string {
       out.push("\\N");
     } else {
       out.push(
-        v
-          .replace(/\\/g, "\\\\")
-          .replace(/\t/g, "\\t")
-          .replace(/\n/g, "\\n")
-          .replace(/\r/g, "\\r"),
+        v.replace(/\\/g, "\\\\").replace(/\t/g, "\\t").replace(/\n/g, "\\n").replace(/\r/g, "\\r"),
       );
     }
   }
@@ -221,8 +217,9 @@ async function copyStage(
       if (done) break;
       buf += decoder.decode(value, { stream: true });
 
-      let nl: number;
-      while ((nl = buf.indexOf("\n")) >= 0) {
+      while (true) {
+        const nl = buf.indexOf("\n");
+        if (nl < 0) break;
         const line = buf.slice(0, nl).replace(/\r$/, "");
         buf = buf.slice(nl + 1);
         if (isFirstLine) {

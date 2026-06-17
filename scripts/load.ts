@@ -17,9 +17,9 @@
  * Usage: bun run scripts/load.ts
  */
 
-import { readFileSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { SQL } from "bun";
 import { env } from "../src/env";
 import { logger } from "../src/lib/logger";
@@ -32,13 +32,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * bug from hardcoded split points).
  * Returns 0 if the file doesn't exist or wc fails.
  */
-async function countFileLines(path: string): Promise<number> {
+async function _countFileLines(path: string): Promise<number> {
   try {
     const proc = Bun.spawn(["wc", "-l", path], { stdout: "pipe" });
     const output = await new Response(proc.stdout).text();
     await proc.exited;
     const match = output.trim().match(/^\s*(\d+)/);
-    return match && match[1] ? Number.parseInt(match[1], 10) : 0;
+    return match?.[1] ? Number.parseInt(match[1], 10) : 0;
   } catch {
     return 0;
   }
@@ -84,7 +84,10 @@ async function main() {
   // chunks each; all other states use a single worker. The split points
   // are computed from the actual file line counts (no hardcoded values).
   const WORKERS = await buildWorkerList(dataDir);
-  logger.info({ workerCount: WORKERS.length, workers: WORKERS.map((w) => w.label) }, "Worker spawn list built");
+  logger.info(
+    { workerCount: WORKERS.length, workers: WORKERS.map((w) => w.label) },
+    "Worker spawn list built",
+  );
 
   // Step 1: Schema setup — skip if ALL required objects already exist.
   const schemaCheck = await sql`
@@ -200,7 +203,10 @@ async function main() {
   logger.info("Recreating staging indexes...");
   const stagingIdxStart = performance.now();
   await sql.unsafe(readFileSync(join(sqlDir, "006_staging_indexes.sql"), "utf-8"));
-  logger.info({ elapsed: ((performance.now() - stagingIdxStart) / 1000).toFixed(1) }, "Staging indexes recreated");
+  logger.info(
+    { elapsed: ((performance.now() - stagingIdxStart) / 1000).toFixed(1) },
+    "Staging indexes recreated",
+  );
 
   // Step 3c: pg_prewarm staging tables into shared_buffers for the REFRESH.
   //   The REFRESH JOINs read from these tables; pre-warming avoids OS file
@@ -214,7 +220,10 @@ async function main() {
     SELECT pg_prewarm('staging_locality');
     SELECT pg_prewarm('staging_address_geocode');
   `);
-  logger.info({ elapsed: ((performance.now() - prewarmStart) / 1000).toFixed(1) }, "Staging tables prewarmed");
+  logger.info(
+    { elapsed: ((performance.now() - prewarmStart) / 1000).toFixed(1) },
+    "Staging tables prewarmed",
+  );
 
   // Step 3d: Pre-filter retired/alias rows. The MV's WHERE clause was removed
   //   (the filter is now a DELETE before REFRESH). This reduces the MV row
@@ -234,7 +243,10 @@ async function main() {
     DELETE FROM staging_address_detail
     WHERE date_retired IS NOT NULL OR alias_principal = 'A'
   `);
-  logger.info({ elapsed: ((performance.now() - filterStart) / 1000).toFixed(1) }, "Retired/alias rows filtered");
+  logger.info(
+    { elapsed: ((performance.now() - filterStart) / 1000).toFixed(1) },
+    "Retired/alias rows filtered",
+  );
 
   // Step 3e: Drop MV indexes (except UNIQUE) for faster REFRESH.
   //   REFRESH maintains all 9 indexes during the 16M-row INSERT — the GIN
@@ -253,7 +265,10 @@ async function main() {
     DROP INDEX IF EXISTS idx_mv_confidence;
     DROP INDEX IF EXISTS idx_mv_postcode_prefix;
   `);
-  logger.info({ elapsed: ((performance.now() - dropMvIdxStart) / 1000).toFixed(1) }, "MV indexes dropped");
+  logger.info(
+    { elapsed: ((performance.now() - dropMvIdxStart) / 1000).toFixed(1) },
+    "MV indexes dropped",
+  );
 
   // Step 4: Refresh materialized view
   //   The MV reads pre-computed display/search_text_expanded from staging

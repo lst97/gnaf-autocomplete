@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:18-bookworm
+    restart: unless-stopped
     shm_size: '2GB'                    # Required for REFRESH MATERIALIZED VIEW with
                                       # maintenance_work_mem=2GB. Default Docker
                                       # shm (64MB) causes "No space left on device".
@@ -13,8 +14,8 @@ services:
       # matching. Without C locale, they fall back to ICU/UTF-8 which
       # adds 10-20% overhead per index comparison.
       POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
-    ports:
-      - "5433:5432"
+    # No host port mapping — DB is only reachable via Docker internal network.
+    # api connects at postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/gnaf.
     volumes:
       # Postgres 18+ requires the mount at /var/lib/postgresql (not /data).
       # The image creates a major-version-specific subdirectory automatically.
@@ -47,6 +48,7 @@ services:
 
   api:
     build: .
+    restart: unless-stopped
     # CD pushes to GHCR; image tag is set by the CD workflow.
     # Local `docker compose up` builds from source (build: . takes precedence).
     image: ghcr.io/${GH_USER:-lst97}/gnaf-autocomplete:${IMAGE_TAG:-latest}
