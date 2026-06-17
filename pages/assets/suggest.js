@@ -2,26 +2,26 @@
 // =============================================================
 
 // Stored results for frontend pagination
-let _suggestAllResults = [];
-let _suggestMetaData = {};
+let suggestAllResults = [];
+let suggestMetaData = {};
 
 function renderSuggestPage() {
   const off = parseInt(document.getElementById("soff").value, 10) || 0;
-  const page = _suggestAllResults.slice(off, off + PAGE_SIZE);
-  const total = _suggestAllResults.length;
+  const page = suggestAllResults.slice(off, off + PAGE_SIZE);
+  const total = suggestAllResults.length;
 
   const tbody = document.querySelector("#suggestTable tbody");
   tbody.innerHTML = "";
 
   const meta = document.getElementById("suggestMeta");
   meta.innerHTML =
-    `<span class="tier">${_suggestMetaData.tier || "-"}</span>` +
-    (_suggestMetaData.cacheHit
+    `<span class="tier">${suggestMetaData.tier || "-"}</span>` +
+    (suggestMetaData.cacheHit
       ? ` <span class="badge badge-info" title="Served from in-process LRU cache">↺ cache</span>`
       : "") +
     ` &middot; <span class="count">${total}</span> results &middot; ` +
-    `server: <span class="ms">${_suggestMetaData.took_ms}ms</span> &middot; ` +
-    `HTTP: ${_suggestMetaData.httpMs}ms`;
+    `server: <span class="ms">${suggestMetaData.took_ms}ms</span> &middot; ` +
+    `HTTP: ${suggestMetaData.httpMs}ms`;
 
   page.forEach((r) => {
     const tr = document.createElement("tr");
@@ -148,8 +148,8 @@ async function doSuggest() {
   const data = await resp.json();
 
   if (data.results && data.results.length > 0) {
-    _suggestAllResults = data.results;
-    _suggestMetaData = {
+    suggestAllResults = data.results;
+    suggestMetaData = {
       tier: data.tier || "-",
       cacheHit: data.cache_status === "hit",
       took_ms: data.took_ms,
@@ -158,7 +158,7 @@ async function doSuggest() {
     document.getElementById("soff").value = "0";
     renderSuggestPage();
   } else {
-    _suggestAllResults = [];
+    suggestAllResults = [];
     const cacheTag = data.cache_status === "hit" ? " ↺ cache" : "";
     document.getElementById("suggestMeta").textContent =
       `No results${cacheTag} (server: ${data.took_ms}ms, HTTP: ${httpMs}ms)`;

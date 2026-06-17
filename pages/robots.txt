@@ -1,2 +1,13 @@
 User-agent: *
-Disallow: /
+Allow: /
+Disallow: /api/
+Disallow: /openapi/
+Disallow: /suggest
+Disallow: /address/
+Disallow: /warmup
+Disallow: /keys
+Disallow: /assets/
+Disallow: /*-tab.html
+Disallow: /.well-known/
+
+Sitemap: https://gnaf.lst97.dev/sitemap.xml

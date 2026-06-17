@@ -29,6 +29,9 @@ export const staticRoute = new Elysia()
   .get("/robots.txt", async () =>
     serveStatic("pages/robots.txt", "text/plain; charset=utf-8", "User-agent: *\nDisallow: /\n"),
   )
+  .get("/sitemap.xml", async () =>
+    serveStatic("pages/sitemap.xml", "application/xml; charset=utf-8", "Not found"),
+  )
   .get("/llms.txt", async () =>
     serveStatic("pages/llms.txt", "text/plain; charset=utf-8", "Not found"),
   )

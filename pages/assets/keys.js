@@ -30,7 +30,7 @@ function handleApiError(data, defaultMsg) {
   return defaultMsg || "An error occurred.";
 }
 
-function _dispatchKeyExpired() {
+function dispatchKeyExpired() {
   document.dispatchEvent(new CustomEvent("key-expired", { detail: { timestamp: Date.now() } }));
 }
 
@@ -648,7 +648,9 @@ window.verifyKey = async (prefix) => {
   if (!statusEl) return;
   statusEl.textContent = "⏳ Checking DNS...";
   try {
-    const res = await fetch(`/api/keys/${encodeURIComponent(prefix)}/verify`, { method: "POST" });
+    const res = await fetch(`/api/keys/${encodeURIComponent(prefix)}/verify`, {
+      method: "POST",
+    });
     const data = await res.json();
     if (data.status === "verified" || data.status === "active") {
       statusEl.innerHTML = '<span style="color:var(--green)">✓ Verified! Key is active.</span>';
