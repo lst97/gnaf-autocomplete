@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { Corrector, resetCorrector, setCorrector } from "../../src/search/corrector";
 import {
-  Corrector,
-  resetCorrector,
-  setCorrector,
-} from "../../src/search/corrector";
-import { correctStateToken, detectPostcodeFilter, detectStateFilter, tokenizeQuery } from "../../src/search/tokenizer";
+  correctStateToken,
+  detectPostcodeFilter,
+  detectStateFilter,
+  tokenizeQuery,
+} from "../../src/search/tokenizer";
 
 describe("tokenizeQuery", () => {
   test("simple query with number", () => {
@@ -420,9 +421,9 @@ describe("regression: all-number query short-circuit", () => {
 
   test("'12 main 34' (mixed) extracts prefix normally", () => {
     const t = tokenizeQuery("12 main 34");
-    expect(
-      t.streetPrefix !== null || t.streetNumber !== null || t.localityPrefix !== null,
-    ).toBe(true);
+    expect(t.streetPrefix !== null || t.streetNumber !== null || t.localityPrefix !== null).toBe(
+      true,
+    );
   });
 });
 

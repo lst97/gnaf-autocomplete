@@ -70,7 +70,9 @@ async function benchmark() {
   for (let i = 0; i < iterations; i++) {
     const q = SAMPLE_QUERIES[i % SAMPLE_QUERIES.length]!;
     const start = performance.now();
-    const res = await fetch(`${BASE_URL}/suggest?q=${encodeURIComponent(q)}&limit=10&no_cache=1`, { headers });
+    const res = await fetch(`${BASE_URL}/suggest?q=${encodeURIComponent(q)}&limit=10&no_cache=1`, {
+      headers,
+    });
     const elapsed = performance.now() - start;
     latencies.push(elapsed);
 

@@ -2,10 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { parseGnafReleasePage } from "../../src/lib/version-check";
 
-const GNAF_PAGE_HTML = readFileSync(
-  "tests/fixtures/data-gov-au-page.html",
-  "utf-8",
-);
+const GNAF_PAGE_HTML = readFileSync("tests/fixtures/data-gov-au-page.html", "utf-8");
 
 describe("parseGnafReleasePage", () => {
   test("extracts GDA2020 release from mock page", () => {

@@ -47,30 +47,41 @@ describe("fixture metadata", () => {
 
   test("addresses span multiple states", () => {
     const f = loadFixture();
-    const states = new Set(f.addresses.map(a => a.components.state));
+    const states = new Set(f.addresses.map((a) => a.components.state));
     expect(states.size).toBeGreaterThanOrEqual(3);
   });
 
   test("includes 1-char street names", () => {
     const f = loadFixture();
-    const names = f.addresses.map(a => (a.components.street_name || "").toLowerCase());
-    expect(names.filter(n => n.length === 1).length).toBeGreaterThanOrEqual(3);
+    const names = f.addresses.map((a) => (a.components.street_name || "").toLowerCase());
+    expect(names.filter((n) => n.length === 1).length).toBeGreaterThanOrEqual(3);
   });
 
   test("includes conflict names (street types / flat types as names)", () => {
     const f = loadFixture();
-    const names = f.addresses.map(a => (a.components.street_name || "").toLowerCase());
-    const conflicts = names.filter(n =>
-      ["close", "lane", "court", "avenue", "crescent", "grove", "flat", "house", "parade", "carpark"].includes(n)
+    const names = f.addresses.map((a) => (a.components.street_name || "").toLowerCase());
+    const conflicts = names.filter((n) =>
+      [
+        "close",
+        "lane",
+        "court",
+        "avenue",
+        "crescent",
+        "grove",
+        "flat",
+        "house",
+        "parade",
+        "carpark",
+      ].includes(n),
     );
     expect(conflicts.length).toBeGreaterThanOrEqual(3);
   });
 
   test("includes corrector target names", () => {
     const f = loadFixture();
-    const names = f.addresses.map(a => (a.components.street_name || "").toLowerCase());
-    const targets = names.filter(n =>
-      ["gresford", "sydney", "wantirna", "strathmore", "brighton", "yarralumla"].includes(n)
+    const names = f.addresses.map((a) => (a.components.street_name || "").toLowerCase());
+    const targets = names.filter((n) =>
+      ["gresford", "sydney", "wantirna", "strathmore", "brighton", "yarralumla"].includes(n),
     );
     expect(targets.length).toBeGreaterThanOrEqual(2);
   });

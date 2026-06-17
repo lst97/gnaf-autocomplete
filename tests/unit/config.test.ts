@@ -34,9 +34,7 @@ describe("env schema defaults", () => {
     expect(parsed.LOG_LEVEL).toBe("info");
     expect(parsed.POOL_SIZE).toBe(10);
     expect(parsed.CORS_ORIGINS).toBe("");
-    expect(parsed.DATABASE_URL).toBe(
-      "postgresql://postgres:postgres@localhost:5433/gnaf",
-    );
+    expect(parsed.DATABASE_URL).toBe("postgresql://postgres:postgres@localhost:5433/gnaf");
     expect(parsed.NODE_ENV).toBe("development");
   });
 

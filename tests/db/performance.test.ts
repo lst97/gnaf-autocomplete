@@ -19,7 +19,9 @@ beforeAll(async () => {
 afterAll(async () => {
   try {
     await closeDb();
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 });
 
 describe("performance: tier latencies", () => {

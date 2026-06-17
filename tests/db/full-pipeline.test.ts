@@ -34,8 +34,94 @@ const allAddresses: FixtureAddr[] = (() => {
 })();
 
 // Tokenizer conflict sets — match src/search/tokenizer.ts
-const FLAT_TYPE_LC = new Set(["u","unit","apt","apartment","f","flat","sh","shop","ste","suite","ph","penthouse","th","townhouse","tnhs","ofc","office","vl","vlla","villa","rm","r","l","level","lot","site","carpark","hse","house","bldg","building","duplex","fl","floor"]);
-const STREET_TYPE_LC = new Set(["st","street","rd","road","dr","drive","av","ave","avenue","ct","court","crt","pl","place","ln","lane","cl","close","cr","cres","crescent","tce","terrace","cct","circuit","pde","parade","gr","grove","bvd","blvd","boulevard","hwy","highway","pkwy","parkway","esp","esplanade","tr","trl","trail","tk","track","way","rise","row","cir","circle","loop","walk"]);
+const FLAT_TYPE_LC = new Set([
+  "u",
+  "unit",
+  "apt",
+  "apartment",
+  "f",
+  "flat",
+  "sh",
+  "shop",
+  "ste",
+  "suite",
+  "ph",
+  "penthouse",
+  "th",
+  "townhouse",
+  "tnhs",
+  "ofc",
+  "office",
+  "vl",
+  "vlla",
+  "villa",
+  "rm",
+  "r",
+  "l",
+  "level",
+  "lot",
+  "site",
+  "carpark",
+  "hse",
+  "house",
+  "bldg",
+  "building",
+  "duplex",
+  "fl",
+  "floor",
+]);
+const STREET_TYPE_LC = new Set([
+  "st",
+  "street",
+  "rd",
+  "road",
+  "dr",
+  "drive",
+  "av",
+  "ave",
+  "avenue",
+  "ct",
+  "court",
+  "crt",
+  "pl",
+  "place",
+  "ln",
+  "lane",
+  "cl",
+  "close",
+  "cr",
+  "cres",
+  "crescent",
+  "tce",
+  "terrace",
+  "cct",
+  "circuit",
+  "pde",
+  "parade",
+  "gr",
+  "grove",
+  "bvd",
+  "blvd",
+  "boulevard",
+  "hwy",
+  "highway",
+  "pkwy",
+  "parkway",
+  "esp",
+  "esplanade",
+  "tr",
+  "trl",
+  "trail",
+  "tk",
+  "track",
+  "way",
+  "rise",
+  "row",
+  "cir",
+  "circle",
+  "loop",
+  "walk",
+]);
 
 let dbOnline = false;
 let correctorLoaded = false;
@@ -55,7 +141,9 @@ beforeAll(async () => {
 afterAll(async () => {
   try {
     await closeDb();
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 });
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -140,7 +228,9 @@ async function runPipeline(q: string, state: string | null = null) {
   let rows: any[] = [];
   try {
     rows = await r.sql;
-  } catch { /* query error */}
+  } catch {
+    /* query error */
+  }
   // Normalize optional correction fields to null (router omits them when
   // no correction fired, so they'd be undefined otherwise).
   return {
@@ -163,20 +253,22 @@ function addressInResults(display: string, rows: any[]): boolean {
 
 // ── Fixture-driven tests ──────────────────────────────────────────
 
-const SHORT_STREETS = allAddresses.filter(a => {
-  const s = (a.components.street_name || "").toLowerCase();
-  // Exclude streets that are also FLAT_TYPE_LC codes (f, l, lot, etc.)
-  // since the tokenizer treats them as flat prefixes, not street names.
-  return s.length === 1 && s !== "f" && s !== "l";
-}).slice(0, 20);
+const SHORT_STREETS = allAddresses
+  .filter((a) => {
+    const s = (a.components.street_name || "").toLowerCase();
+    // Exclude streets that are also FLAT_TYPE_LC codes (f, l, lot, etc.)
+    // since the tokenizer treats them as flat prefixes, not street names.
+    return s.length === 1 && s !== "f" && s !== "l";
+  })
+  .slice(0, 20);
 
-const ADDRESSES_WITH_NUMBER = allAddresses.filter(a =>
-  a.components.number_first && a.components.street_name
-).slice(0, 80);
+const ADDRESSES_WITH_NUMBER = allAddresses
+  .filter((a) => a.components.number_first && a.components.street_name)
+  .slice(0, 80);
 
-const FLAT_ADDRESSES = allAddresses.filter(a =>
-  a.components.flat_type && a.components.street_name
-).slice(0, 20);
+const FLAT_ADDRESSES = allAddresses
+  .filter((a) => a.components.flat_type && a.components.street_name)
+  .slice(0, 20);
 
 describe("full pipeline: realistic address queries", () => {
   test("basic resolve: number+alpha-street finds the address", async () => {
@@ -200,8 +292,8 @@ describe("full pipeline: realistic address queries", () => {
     if (!dbOnline) return;
     let found = 0;
     let total = 0;
-    const candidates = allAddresses.filter(a =>
-      a.components.number_first && a.components.street_name && a.components.locality
+    const candidates = allAddresses.filter(
+      (a) => a.components.number_first && a.components.street_name && a.components.locality,
     );
     for (const addr of candidates) {
       if (total >= 20) break;
@@ -219,7 +311,7 @@ describe("full pipeline: realistic address queries", () => {
     if (!dbOnline) return;
     let tested = 0;
     let passed = 0;
-    const candidates = allAddresses.filter(a => {
+    const candidates = allAddresses.filter((a) => {
       const s = (a.components.street_name || "").toLowerCase();
       // Exclude flat-type conflicts (f, l) and non-alpha prefixes (4d)
       // that can't be extracted as valid street prefixes.
@@ -266,8 +358,8 @@ describe("full pipeline: typo correction", () => {
   // Generate typo queries from fixture addresses with single-word
   // street names (not multi-word) — the corrector works word-by-word.
   const typoCandidates = allAddresses
-    .filter(a => {
-      const s = (a.components.street_name || "");
+    .filter((a) => {
+      const s = a.components.street_name || "";
       return s.length >= 4 && !s.includes(" ");
     })
     .slice(0, 20);
@@ -358,12 +450,46 @@ describe("full pipeline: postcode filter", () => {
 
 // Conflict sets that exercise the tokenizer's reserved-word filters
 const FLAT_CONFLICT_STREETS = new Set([
-  "f", "l", "lot", "house", "carpark", "flat", "hse", "bldg", "unit", "shop",
-  "office", "level", "floor", "site", "rm", "r", "vl", "tnhs", "ofc",
+  "f",
+  "l",
+  "lot",
+  "house",
+  "carpark",
+  "flat",
+  "hse",
+  "bldg",
+  "unit",
+  "shop",
+  "office",
+  "level",
+  "floor",
+  "site",
+  "rm",
+  "r",
+  "vl",
+  "tnhs",
+  "ofc",
 ]);
 const STREET_CONFLICT_STREETS = new Set([
-  "close", "lane", "court", "avenue", "place", "st", "rd", "pl", "ln", "ct",
-  "way", "rise", "row", "walk", "loop", "cir", "tk", "trl", "esp",
+  "close",
+  "lane",
+  "court",
+  "avenue",
+  "place",
+  "st",
+  "rd",
+  "pl",
+  "ln",
+  "ct",
+  "way",
+  "rise",
+  "row",
+  "walk",
+  "loop",
+  "cir",
+  "tk",
+  "trl",
+  "esp",
 ]);
 const STATE_CONFLICT_STREETS = new Set(["act"]);
 

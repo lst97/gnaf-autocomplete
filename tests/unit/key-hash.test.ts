@@ -81,12 +81,7 @@ describe("verifyKey", () => {
   });
 
   test("round-trip: hash then verify", () => {
-    const keys = [
-      "gnaf_pk_abc123",
-      "gnaf_pk_xyz789",
-      "gnaf_pk_",
-      "gnaf_pk_" + "z".repeat(43),
-    ];
+    const keys = ["gnaf_pk_abc123", "gnaf_pk_xyz789", "gnaf_pk_", "gnaf_pk_" + "z".repeat(43)];
     for (const key of keys) {
       const hash = hashKey(key);
       expect(verifyKey(key, hash)).toBe(true);

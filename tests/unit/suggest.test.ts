@@ -201,7 +201,7 @@ describe("isValidAddressQuery", () => {
   });
 
   test("'asdfghjkl' — gibberish, no meaningful address content", () => {
-    expect(isValidAddressQuery("asdfghjkl")).toBe(true);  // has alpha, <3 digits
+    expect(isValidAddressQuery("asdfghjkl")).toBe(true); // has alpha, <3 digits
   });
 
   test("'@#$%' — no meaningful content (symbols only)", () => {

@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  AppError,
-  DatabaseError,
-  ERROR_CODES,
-  ValidationError,
-} from "../../src/lib/errors";
+import { AppError, DatabaseError, ERROR_CODES, ValidationError } from "../../src/lib/errors";
 
 describe("AppError", () => {
   test("creates with default values", () => {

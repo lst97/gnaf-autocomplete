@@ -14,9 +14,7 @@ describe("logger", () => {
 
   test("has valid log level set", () => {
     // Should be one of: trace, debug, info, warn, error, fatal
-    expect(["trace", "debug", "info", "warn", "error", "fatal"]).toContain(
-      logger.level,
-    );
+    expect(["trace", "debug", "info", "warn", "error", "fatal"]).toContain(logger.level);
   });
 
   test("logger.info can be called without throwing", () => {

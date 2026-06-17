@@ -59,7 +59,19 @@ describe("WARMUP_TASKS", () => {
     const tier1Params = WARMUP_TASKS.filter((t) => t.label === "tier1")
       .flatMap((t) => t.params)
       .filter((p) => typeof p === "string");
-    const cities = ["sydne", "main", "george", "queen", "collins", "perth", "brisbane", "adelaide", "hobart", "darwin", "canberra"];
+    const cities = [
+      "sydne",
+      "main",
+      "george",
+      "queen",
+      "collins",
+      "perth",
+      "brisbane",
+      "adelaide",
+      "hobart",
+      "darwin",
+      "canberra",
+    ];
     for (const city of cities) {
       expect(tier1Params).toContain(`${city}%`);
     }

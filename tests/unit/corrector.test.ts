@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import {
-  Corrector,
-  getCorrector,
-  resetCorrector,
-  setCorrector,
-} from "../../src/search/corrector";
+import { Corrector, getCorrector, resetCorrector, setCorrector } from "../../src/search/corrector";
 import { correctStateToken } from "../../src/search/tokenizer";
 
 /**
@@ -111,8 +106,8 @@ describe("Corrector — street dictionary", () => {
 describe("Corrector — frequency-based ranking", () => {
   test("higher frequency candidate wins over lower frequency", () => {
     const c = new Corrector();
-    c.addStreet("main", 1000);   // common
-    c.addStreet("maine", 10);    // rare, but real
+    c.addStreet("main", 1000); // common
+    c.addStreet("maine", 10); // rare, but real
     // "mian" is distance 1 from both "main" and "maine":
     //   "main" - "i" = "man" → no... let me think.
     // Actually "mian": "i"↔"a" at position 1 → substitution.

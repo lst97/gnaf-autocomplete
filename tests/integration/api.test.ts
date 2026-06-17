@@ -96,7 +96,8 @@ describe("GET /suggest", () => {
   test("lat and lon are numbers when results present", async () => {
     if (!apiOnline || !apiKey) return;
     const res = await fetch(`${BASE_URL}/suggest?q=sydney&limit=1`, {
-      headers: authHeaders(), signal: AbortSignal.timeout(3000),
+      headers: authHeaders(),
+      signal: AbortSignal.timeout(3000),
     });
     const data = await res.json();
     if (data.results.length > 0) {
@@ -203,7 +204,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 
   test("number range query '10-20 main' finds results", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=10-20%20main&limit=3`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=10-20%20main&limit=3`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.results.length).toBeGreaterThan(0);
@@ -212,7 +215,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 
   test("flat pattern '1/6 fortuna' finds results", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=1/6%20fortuna&limit=3`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=1/6%20fortuna&limit=3`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.results.length).toBeGreaterThan(0);
@@ -221,7 +226,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 
   test("flat pattern with number 'unit 1 6 fortuna' finds results", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=unit%201%206%20fortuna&limit=3`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=unit%201%206%20fortuna&limit=3`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.results.length).toBeGreaterThan(0);
@@ -230,7 +237,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 
   test("apartment pattern 'apt 5 george' finds results", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=apt%205%20george&limit=3`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=apt%205%20george&limit=3`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.results.length).toBeGreaterThan(0);
@@ -238,7 +247,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 
   test("multi-word locality 'glen huntly' finds results", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=glen%20huntly&limit=3`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=glen%20huntly&limit=3`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     // Should find via tier4 or tier1 with multi-word locale boost
@@ -247,7 +258,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 
   test("query with apostrophe 'a beckett st' finds results", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=a%27beckett%20st&limit=3`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=a%27beckett%20st&limit=3`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.results.length).toBeGreaterThan(0);
@@ -255,7 +268,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 
   test("query with hyphen 'bong-bong road' finds results", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=bong-bong%20road&limit=3`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=bong-bong%20road&limit=3`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.results.length).toBeGreaterThan(0);
@@ -272,7 +287,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 
   test("state+postcode query 'sydney nsw 2000' finds results", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=sydney%20nsw%202000&limit=3`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=sydney%20nsw%202000&limit=3`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.results.length).toBeGreaterThan(0);
@@ -281,7 +298,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 
   test("state+locality 'main st sydney nsw' finds results", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=main%20st%20sydney%20nsw&limit=3`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=main%20st%20sydney%20nsw&limit=3`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.results.length).toBeGreaterThan(0);
@@ -291,7 +310,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 
   test("number + 1-char street '12 y st' finds results", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=12%20y%20st&limit=3`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=12%20y%20st&limit=3`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.results.length).toBeGreaterThan(0);
@@ -300,7 +321,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 
   test("state correction: 'nzw' returns state_corrected_from field", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=sydney%20nzw&limit=3`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=sydney%20nzw&limit=3`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     // State correction rewrote "nzw" → NSW.  Results may be empty if no
@@ -313,7 +336,9 @@ describe("Preprocessing pipeline — tokenizer edge cases", () => {
 describe("Tier 1 fallback chain (typo recovery)", () => {
   test("exact prefix returns tier1 with matches", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=gresford&limit=3&no_cache=1`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=gresford&limit=3&no_cache=1`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.tier).toBe("tier1");
@@ -323,7 +348,9 @@ describe("Tier 1 fallback chain (typo recovery)", () => {
 
   test("1-char deletion typo routes to typo_corrected", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=gresfrod&limit=3&no_cache=1`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=gresfrod&limit=3&no_cache=1`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.tier).toBe("typo_corrected");
@@ -333,7 +360,9 @@ describe("Tier 1 fallback chain (typo recovery)", () => {
 
   test("1-char insertion typo routes to typo_corrected", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=gresfodr&limit=3&no_cache=1`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=gresfodr&limit=3&no_cache=1`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.tier).toBe("typo_corrected");
@@ -343,7 +372,9 @@ describe("Tier 1 fallback chain (typo recovery)", () => {
 
   test("transposition typo routes to tier1 or typo_corrected", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=mian%20st&limit=3&no_cache=1`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=mian%20st&limit=3&no_cache=1`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(["tier1", "typo_corrected"]).toContain(data.tier);
@@ -351,7 +382,9 @@ describe("Tier 1 fallback chain (typo recovery)", () => {
 
   test("1-char-extra typo routes to typo_corrected", async () => {
     if (!apiOnline || !apiKey) return;
-    const res = await fetch(`${BASE_URL}/suggest?q=sydneey&limit=3&no_cache=1`, { headers: authHeaders() });
+    const res = await fetch(`${BASE_URL}/suggest?q=sydneey&limit=3&no_cache=1`, {
+      headers: authHeaders(),
+    });
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.tier).toBe("typo_corrected");

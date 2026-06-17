@@ -57,7 +57,42 @@ function isValidAddressQuery(q: string): boolean {
 
 // ── Tokenizer reserved sets ──────────────────────────────────────
 
-const FLAT_TYPE_LC = new Set(["u", "unit", "apt", "apartment", "f", "flat", "sh", "shop", "ste", "suite", "ph", "penthouse", "th", "townhouse", "tnhs", "ofc", "office", "vl", "vlla", "villa", "rm", "r", "l", "level", "lot", "site", "carpark", "hse", "house", "bldg", "building", "duplex", "fl", "floor"]);
+const FLAT_TYPE_LC = new Set([
+  "u",
+  "unit",
+  "apt",
+  "apartment",
+  "f",
+  "flat",
+  "sh",
+  "shop",
+  "ste",
+  "suite",
+  "ph",
+  "penthouse",
+  "th",
+  "townhouse",
+  "tnhs",
+  "ofc",
+  "office",
+  "vl",
+  "vlla",
+  "villa",
+  "rm",
+  "r",
+  "l",
+  "level",
+  "lot",
+  "site",
+  "carpark",
+  "hse",
+  "house",
+  "bldg",
+  "building",
+  "duplex",
+  "fl",
+  "floor",
+]);
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -101,7 +136,9 @@ async function runPipeline(q: string, state: string | null = null) {
   let rows: any[] = [];
   try {
     rows = await r.sql;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { tier: r.tier, rows, correctedFrom: r.correctedFrom ?? null };
 }
 
@@ -157,7 +194,9 @@ beforeAll(async () => {
 afterAll(async () => {
   try {
     await closeDb();
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 });
 
 // ── Integration: schema check + tokenizer + corrector + DB ──────
@@ -379,9 +418,9 @@ describe("int: full pipeline finds fixture addresses", () => {
 
   test("flat/unit patterns find the address", async () => {
     if (!dbOnline) return;
-    const flatAddrs = allAddresses.filter(
-      (a) => a.components.flat_type && a.components.street_name,
-    ).slice(0, 10);
+    const flatAddrs = allAddresses
+      .filter((a) => a.components.flat_type && a.components.street_name)
+      .slice(0, 10);
     for (const addr of flatAddrs) {
       const ft = addr.components.flat_type!.toLowerCase();
       const fn = addr.components.flat_number;
@@ -397,10 +436,7 @@ describe("int: full pipeline finds fixture addresses", () => {
 
   test("range pattern 'num-street' finds results", async () => {
     if (!dbOnline) return;
-    const ranges = [
-      "12-56 main st",
-      "10-20 sydney",
-    ];
+    const ranges = ["12-56 main st", "10-20 sydney"];
     for (const q of ranges) {
       expect(isValidAddressQuery(q)).toBe(true);
       const { rows } = await runPipeline(q);

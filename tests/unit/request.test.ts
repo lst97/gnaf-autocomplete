@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import {
-  generateRequestId,
-  getOrGenerateRequestId,
-} from "../../src/lib/request";
+import { generateRequestId, getOrGenerateRequestId } from "../../src/lib/request";
 
 /**
  * getOrGenerateRequestId uses a module-level WeakMap.

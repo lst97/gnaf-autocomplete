@@ -23,7 +23,9 @@ beforeAll(async () => {
 afterAll(async () => {
   try {
     await closeDb();
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 });
 
 interface QueryTest {
@@ -47,9 +49,21 @@ const QUERIES: QueryTest[] = [
   { q: "845 4d caroona", description: "non-alpha prefix + locality", category: "tier4" },
   { q: "main street sydney nsw", description: "full address 4 tokens", category: "tier4" },
   { q: "1 main street sydney nsw 2000", description: "full address 6 tokens", category: "long" },
-  { q: "1 main street sydney nsw 2000 australia", description: "7 tokens with country", category: "long" },
-  { q: "unit 5 12 main street sydney nsw 2000", description: "flat + full address 7 tokens", category: "long" },
-  { q: "level 3 unit 5 12 main street sydney nsw 2000", description: "level + flat + full 8 tokens", category: "long" },
+  {
+    q: "1 main street sydney nsw 2000 australia",
+    description: "7 tokens with country",
+    category: "long",
+  },
+  {
+    q: "unit 5 12 main street sydney nsw 2000",
+    description: "flat + full address 7 tokens",
+    category: "long",
+  },
+  {
+    q: "level 3 unit 5 12 main street sydney nsw 2000",
+    description: "level + flat + full 8 tokens",
+    category: "long",
+  },
   { q: "a", description: "single letter", category: "short" },
   { q: "ab", description: "2 letters", category: "short" },
   { q: "1 a", description: "number + 1-letter", category: "short" },
@@ -79,8 +93,16 @@ const QUERIES: QueryTest[] = [
   { q: "12 main clayton south", description: "multi-word locality", category: "locality" },
   { q: "12 main mount waverley", description: "multi-word locality 2", category: "locality" },
   { q: "12 main glen huntly", description: "multi-word locality 3", category: "locality" },
-  { q: "4 avenue sydney", description: "avenue street (post-fix)", category: "street-name-conflict" },
-  { q: "1 close canterbury", description: "close street (post-fix)", category: "street-name-conflict" },
+  {
+    q: "4 avenue sydney",
+    description: "avenue street (post-fix)",
+    category: "street-name-conflict",
+  },
+  {
+    q: "1 close canterbury",
+    description: "close street (post-fix)",
+    category: "street-name-conflict",
+  },
   { q: "12 main", description: "most common street name", category: "common" },
   { q: "main", description: "common street", category: "common" },
   { q: "the", description: "stopword", category: "edge" },
@@ -96,8 +118,10 @@ const SLOW_THRESHOLD_MS = 1000;
 describe("performance: query latency sweep", () => {
   test("identify any queries that exceed 1s threshold", async () => {
     if (!dbOnline) return;
-    const slowQueries: Array<{ q: string; description: string; elapsed: number; tier: string }> = [];
-    const fastQueries: Array<{ q: string; description: string; elapsed: number; tier: string }> = [];
+    const slowQueries: Array<{ q: string; description: string; elapsed: number; tier: string }> =
+      [];
+    const fastQueries: Array<{ q: string; description: string; elapsed: number; tier: string }> =
+      [];
 
     for (const qt of QUERIES) {
       const r = routeQuery(qt.q, qt.state ?? null, qt.postcode ?? null, 10, 0);
@@ -105,7 +129,9 @@ describe("performance: query latency sweep", () => {
       let rows: any[] = [];
       try {
         rows = await r.sql;
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       const elapsed = performance.now() - start;
 
       const entry = { q: qt.q, description: qt.description, elapsed, tier: r.tier };
