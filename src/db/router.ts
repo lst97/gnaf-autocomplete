@@ -1,54 +1,5 @@
-import {
-  detectPostcodeFilter,
-  detectStateFilter,
-  STREET_TYPE_LC,
-  tokenizeQuery,
-} from "../search/tokenizer";
+import { detectPostcodeFilter, detectStateFilter, tokenizeQuery } from "../search/tokenizer";
 import { getSql } from "./client";
-
-const STREET_TYPE_ABBREV: Record<string, string> = {
-  st: "st",
-  street: "st",
-  rd: "rd",
-  road: "rd",
-  dr: "dr",
-  drive: "dr",
-  cl: "cl",
-  close: "cl",
-  ct: "ct",
-  court: "ct",
-  av: "av",
-  ave: "av",
-  avenue: "av",
-  pl: "pl",
-  place: "pl",
-  ln: "ln",
-  lane: "ln",
-  cr: "cr",
-  cres: "cr",
-  crescent: "cr",
-  pde: "pde",
-  parade: "pde",
-  tce: "tce",
-  terrace: "tce",
-  cct: "cct",
-  circuit: "cct",
-  hwy: "hwy",
-  highway: "hwy",
-  gr: "gr",
-  grove: "gr",
-  bvd: "bvd",
-  blvd: "bvd",
-  boulevard: "bvd",
-  pkwy: "pkwy",
-  parkway: "pkwy",
-  esp: "esp",
-  esplanade: "esp",
-  trl: "trl",
-  trail: "trl",
-  tk: "tk",
-  track: "tk",
-};
 
 import {
   tier0LocalityQuery,
@@ -183,26 +134,9 @@ export function routeQuery(
     };
   }
 
-  // Multi-word locality boost: tokenizer captures only the last word as
-  // localityPrefix. When the second-to-last token is alphabetic and not a
-  // street type, combine both — covers "glen huntly", "mount waverley", etc.
-  let locale = tokenized.localityPrefix;
-  const toks = tokenized.tokens;
-  if (locale && toks.length >= 2) {
-    const penultimate = toks[toks.length - 2];
-    if (penultimate && /^[a-z]{2,}$/.test(penultimate) && !STREET_TYPE_LC.has(penultimate)) {
-      locale = `${penultimate} ${locale}`;
-    }
-  }
-
-  let streetAbbrev: string | null = null;
-  for (const t of tokenized.tokens) {
-    const lc = t.replace(/^,+|,+$/g, "").toLowerCase();
-    if (STREET_TYPE_LC.has(lc) && STREET_TYPE_ABBREV[lc]) {
-      streetAbbrev = `${STREET_TYPE_ABBREV[lc] ?? ""},`;
-      break;
-    }
-  }
+  // Multi-word locality boost and street-type abbreviation extraction live
+  // in tokenizeQuery() — see TokenizedQuery.localityPrefix and
+  // TokenizedQuery.streetTypeAbbrev.
 
   // Tier 1: exact street prefix (1-3ms). Supports ≥1-char prefixes so
   // 1-2 char streets like "Y ST" / "PI ST" hit the fast btree index.
@@ -211,14 +145,15 @@ export function routeQuery(
       sql: tier1StreetQuery(
         prefix,
         effectiveState,
-        locale,
+        tokenized.localityPrefix,
         limit,
         offset,
         tokenized.streetNumber,
         tokenized.flatTypeAhead,
         effectivePostcode,
         tokenized.flatNumber,
-        streetAbbrev,
+        tokenized.streetTypeAbbrev,
+        tokenized.numberSuffix,
       ),
       tier: tokenized.correctedFrom ? "typo_corrected" : "tier1",
       ...(tokenized.correctedFrom != null ? { correctedFrom: tokenized.correctedFrom } : {}),
