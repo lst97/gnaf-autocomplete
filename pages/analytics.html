@@ -47,10 +47,6 @@
         <title>Analytics — G-NAF Address Autocomplete API</title>
         <link rel="stylesheet" href="/style.css" />
         <style>
-            .table-wrap {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
             .stat-grid {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -89,35 +85,7 @@
             .stat-card.requests .num {
                 color: var(--orange);
             }
-            .card {
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: var(--r-md);
-                padding: var(--sp-5);
-                margin-bottom: var(--sp-4);
-                box-shadow:
-                    0 1px 3px rgba(101, 123, 131, 0.06),
-                    0 1px 0 rgba(7, 54, 66, 0.03);
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-            }
-            th {
-                text-align: left;
-                font-size: var(--fs-xs);
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                color: var(--muted);
-                padding: var(--sp-2) var(--sp-3);
-                border-bottom: 1px solid var(--border);
-            }
-            td {
-                padding: var(--sp-2) var(--sp-3);
-                border-bottom: 1px solid var(--border);
-                font-size: var(--fs-md);
-                color: var(--text);
-            }
+
             td:last-child,
             th:last-child {
                 text-align: right;
@@ -140,62 +108,6 @@
             .domain-name {
                 font-family: var(--mono);
                 font-size: var(--fs-sm);
-            }
-            .loading {
-                text-align: center;
-                padding: 60px 20px;
-                color: var(--muted);
-            }
-            .loading .spinner {
-                display: inline-block;
-                width: 24px;
-                height: 24px;
-                border: 3px solid var(--border);
-                border-top-color: var(--blue);
-                border-radius: 50%;
-                animation: spin 0.6s linear infinite;
-                margin-bottom: var(--sp-3);
-            }
-            @keyframes spin {
-                to {
-                    transform: rotate(360deg);
-                }
-            }
-            .error-box {
-                background: #fdf4f4;
-                border: 1px solid var(--red);
-                border-radius: var(--r-md);
-                padding: var(--sp-5);
-                text-align: center;
-                color: var(--red);
-            }
-            .footer {
-                margin-top: var(--sp-6);
-                font-size: var(--fs-xs);
-                color: var(--muted);
-                text-align: center;
-            }
-            .footer a {
-                color: var(--link);
-            }
-            .footer a:hover {
-                text-decoration: underline;
-            }
-            .empty-state {
-                text-align: center;
-                padding: var(--sp-6);
-                color: var(--muted);
-            }
-            .empty-state a {
-                color: var(--link);
-            }
-            .label-tag {
-                display: inline-block;
-                font-size: var(--fs-xs);
-                background: var(--surface-2);
-                color: var(--base01);
-                padding: 2px 8px;
-                border-radius: 10px;
             }
             .stacked-bar {
                 display: flex;

@@ -381,6 +381,46 @@ textarea::placeholder {
   padding: 5px 8px;
   font-family: var(--mono);
 }
+.pw-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+}
+.pw-wrap input {
+  padding-right: 32px;
+  min-width: 0;
+}
+.pw-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--base1);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+.pw-toggle:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.pw-toggle:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
 .api-key-status {
   font-family: var(--mono);
   font-size: var(--fs-xs);
@@ -435,6 +475,7 @@ textarea::placeholder {
  * ============================================================ */
 .table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
 }
@@ -1144,32 +1185,131 @@ details[open] summary {
 }
 
 /* ============================================================
+ * Sponsor button (GitHub Sponsors inline)
+ * ============================================================ */
+.sponsor-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  text-decoration: none;
+  transition:
+    color 0.12s,
+    border-color 0.12s,
+    background 0.12s;
+  white-space: nowrap;
+  line-height: 1;
+}
+.sponsor-btn:hover {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: rgba(38, 139, 210, 0.06);
+  text-decoration: none;
+}
+.sponsor-btn .heart {
+  color: var(--red);
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* ============================================================
  * Footer
  * ============================================================ */
 .page-footer {
   margin-top: var(--sp-6);
-  padding: var(--sp-3) 0;
+  padding: var(--sp-4) 0;
   border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   color: var(--muted);
+  text-align: center;
+}
+.page-footer p {
+  margin: 4px 0 0;
+  line-height: 1.6;
 }
 .page-footer a {
   color: var(--muted);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-1);
   transition: color 0.12s;
 }
 .page-footer a:hover {
   color: var(--blue);
 }
 .page-footer .gh-icon {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  margin-right: 2px;
+}
+
+/* ============================================================
+ * Loading / empty / error states (shared)
+ * ============================================================ */
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+.loading .spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-bottom: var(--sp-3);
+}
+.error-box {
+  background: #fdf4f4;
+  border: 1px solid var(--red);
+  border-radius: var(--r-md);
+  padding: var(--sp-5);
+  text-align: center;
+  color: var(--red);
+}
+.empty-state {
+  text-align: center;
+  padding: var(--sp-6);
+  color: var(--muted);
+}
+.empty-state a {
+  color: var(--link);
+}
+.label-tag {
+  display: inline-block;
+  font-size: var(--fs-xs);
+  background: var(--surface-2);
+  color: var(--base01);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* Stat grid variations */
+.stat-grid-6 {
+  grid-template-columns: repeat(6, 1fr);
+}
+.stat-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 800px) {
+  .stat-grid-6 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 500px) {
+  .stat-grid-6 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 720px) {
+  .stat-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* ============================================================
@@ -1197,9 +1337,13 @@ details[open] summary {
   .api-key-bar label {
     display: none;
   }
-  .api-key-bar input {
+  .api-key-bar input,
+  .pw-wrap {
     min-width: 100%;
     font-size: var(--fs-xs);
+  }
+  .pw-wrap input {
+    min-width: 0;
   }
   .api-key-bar .btn-sm {
     font-size: 0.65rem;
