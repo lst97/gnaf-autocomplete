@@ -94,4 +94,42 @@ export const staticRoute = new Elysia()
     );
   })
   .get("/docs", () => Response.redirect("/openapi", 302))
+  .get(
+    "/openapi",
+    () => {
+      const cdn =
+        "https://cdn.jsdelivr.net/npm/@scalar/api-reference@latest/dist/browser/standalone.min.js";
+      return new Response(
+        "<!doctype html>" +
+          "<html><head>" +
+          "<title>G-NAF Address Autocomplete API</title>" +
+          '<meta charset="utf-8" />' +
+          '<meta name="viewport" content="width=device-width, initial-scale=1" />' +
+          "<style>body{margin:0}</style>" +
+          "</head><body>" +
+          '<div id="scalar-container"></div>' +
+          '<script src="' +
+          cdn +
+          '" crossorigin></' +
+          "script>" +
+          "<script>" +
+          'var cfg={url:"openapi/json",theme:"solarized"};' +
+          'try{var k=localStorage.getItem("gnaf_api_key");' +
+          "if(k)cfg.authentication={" +
+          'preferredSecurityScheme:"apiKey",' +
+          'securitySchemes:{apiKey:{name:"X-API-Key",in:"header",value:k}}' +
+          "};" +
+          "}catch(e){}" +
+          'Scalar.createApiReference("#scalar-container",cfg);' +
+          "</" +
+          "script>" +
+          "</body></html>",
+        {
+          status: 200,
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        },
+      );
+    },
+    { detail: { tags: ["Docs"], summary: "OpenAPI docs (Scalar)" } },
+  )
   .get("/openapi.json", () => Response.redirect("/openapi/json", 302));

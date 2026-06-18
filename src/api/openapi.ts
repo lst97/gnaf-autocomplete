@@ -1,4 +1,5 @@
 import { openapi } from "@elysiajs/openapi";
+import { env } from "../env";
 
 export const openapiConfig = openapi({
   documentation: {
@@ -13,13 +14,23 @@ export const openapiConfig = openapi({
         "and use Cloudflare Turnstile for bot protection.\n\n" +
         "G-NAF © Geoscape Australia. See https://geoscape.com.au/data/g-naf/ for license terms.",
     },
-    servers: [{ url: "http://localhost:8000" }],
+    servers: [{ url: env.PUBLIC_URL || "http://localhost:8000" }],
+    components: {
+      securitySchemes: {
+        apiKey: {
+          type: "apiKey",
+          in: "header",
+          name: "X-API-Key",
+          description:
+            "API key obtained from the /keys page. Pass via the X-API-Key header. " +
+            "The Referer or Origin header must match the key's registered domain.",
+        },
+      },
+    },
   },
   path: "/openapi",
-  provider: "scalar",
-  scalar: {
-    theme: "solarized",
-    darkMode: false,
-    customCss: "",
+  provider: null,
+  exclude: {
+    paths: ["/", "/analytics", "/docs", "/openapi"],
   },
 });
