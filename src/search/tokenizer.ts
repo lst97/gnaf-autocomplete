@@ -159,7 +159,6 @@ const RANGE_RE = /^(\d+)-(\d+)$/;
 const ALPHA_NUM_SUFFIX_RE = /^(\d+)[a-z]$/;
 const PURE_DIGIT_RE = /^\d+$/;
 const ALPHA_START_RE = /^[a-z]/;
-const ALPHA_NUM_SUFFIX_ONLY_RE = /^\d+[a-z]$/;
 const ALPHA_SUFFIX_RE = /^\d+([a-z])$/;
 const STATE_CODE_THREE_PLUS = 3;
 
@@ -248,15 +247,25 @@ function findPrefixToken(tokens: string[], startIdx: number): string | null {
   return null;
 }
 
-function extractLeadingParts(tokens: string[]): {
+interface LeadingParts {
   streetNumber: number | null;
   streetPrefix: string | null;
-} {
-  if (tokens.length === 0) return { streetNumber: null, streetPrefix: null };
+  /** Letter suffix from the token that produced streetNumber, e.g. "a" from
+   *  "12a". Null when the number came from a pure-digit token or from a later
+   *  token in a range pair. */
+  numberSuffix: string | null;
+}
+
+function extractLeadingParts(tokens: string[]): LeadingParts {
+  if (tokens.length === 0) {
+    return { streetNumber: null, streetPrefix: null, numberSuffix: null };
+  }
 
   const idx = skipFlatTypePrefix(tokens);
   const candidate = tokens[idx];
-  if (!candidate) return { streetNumber: null, streetPrefix: null };
+  if (!candidate) {
+    return { streetNumber: null, streetPrefix: null, numberSuffix: null };
+  }
 
   const pc = parseCandidate(candidate);
 
@@ -264,19 +273,42 @@ function extractLeadingParts(tokens: string[]): {
     const num = Number(pc.value);
     const nextStr = tokens[idx + 1];
     if (nextStr && (PURE_DIGIT_RE.test(nextStr) || nextStr.includes("-"))) {
-      const streetNum = nextStr.includes("-") ? Number(nextStr.split("-")[0]) : Number(nextStr);
-      return { streetNumber: streetNum, streetPrefix: findPrefixToken(tokens, idx + 2) };
+      // streetNumber comes from the next token (pure digit) — no suffix.
+      const streetNum = nextStr.includes("-")
+        ? Number(nextStr.split("-")[0])
+        : Number(nextStr);
+      return {
+        streetNumber: streetNum,
+        streetPrefix: findPrefixToken(tokens, idx + 2),
+        numberSuffix: null,
+      };
     }
-    return { streetNumber: num, streetPrefix: findPrefixToken(tokens, idx + 1) };
+    // streetNumber comes from this alphanumeric token — extract suffix.
+    const suffixMatch = ALPHA_SUFFIX_RE.exec(candidate);
+    return {
+      streetNumber: num,
+      streetPrefix: findPrefixToken(tokens, idx + 1),
+      numberSuffix: suffixMatch?.[1] ?? null,
+    };
   }
 
   if (pc.kind === "number") {
     const nextStr = tokens[idx + 1];
     if (nextStr && (PURE_DIGIT_RE.test(nextStr) || nextStr.includes("-"))) {
-      const streetNum = nextStr.includes("-") ? Number(nextStr.split("-")[0]) : Number(nextStr);
-      return { streetNumber: streetNum, streetPrefix: findPrefixToken(tokens, idx + 2) };
+      const streetNum = nextStr.includes("-")
+        ? Number(nextStr.split("-")[0])
+        : Number(nextStr);
+      return {
+        streetNumber: streetNum,
+        streetPrefix: findPrefixToken(tokens, idx + 2),
+        numberSuffix: null,
+      };
     }
-    return { streetNumber: Number(pc.value), streetPrefix: findPrefixToken(tokens, idx + 1) };
+    return {
+      streetNumber: Number(pc.value),
+      streetPrefix: findPrefixToken(tokens, idx + 1),
+      numberSuffix: null,
+    };
   }
 
   if (
@@ -287,10 +319,10 @@ function extractLeadingParts(tokens: string[]): {
       STREET_TYPE_LC.has(pc.value) ||
       !correctStateToken(pc.value))
   ) {
-    return { streetNumber: null, streetPrefix: pc.value };
+    return { streetNumber: null, streetPrefix: pc.value, numberSuffix: null };
   }
 
-  return { streetNumber: null, streetPrefix: null };
+  return { streetNumber: null, streetPrefix: null, numberSuffix: null };
 }
 
 function extractFlatNumber(tokens: string[]): number | null {
@@ -367,7 +399,7 @@ function classify(tokens: string[]): TokenizedQuery {
   const startsWithNumber = !!tokens[0] && PURE_DIGIT_RE.test(tokens[0]);
   const flatTypeAhead = !!tokens[0] && FLAT_TYPE_LC.has(tokens[0]);
   const flatNumber = extractFlatNumber(tokens);
-  const { streetNumber, streetPrefix } = extractLeadingParts(tokens);
+  const { streetNumber, streetPrefix, numberSuffix: leadingSuffix } = extractLeadingParts(tokens);
 
   const rawLast = tokens[tokens.length - 1];
   const lastToken = rawLast ? rawLast.replace(COMMA_STRIP_RE, "") : null;
@@ -396,7 +428,7 @@ function classify(tokens: string[]): TokenizedQuery {
     correctedFrom: null,
     localityCorrectedFrom: null,
     stateCorrectedFrom: null,
-    numberSuffix: null,
+    numberSuffix: leadingSuffix,
     streetTypeAbbrev: null,
   };
 }
@@ -451,16 +483,9 @@ function correct(
     }
   }
 
-  const numberSuffix: string | null =
-    result.streetNumber !== null
-      ? (() => {
-          const firstAlpha = tokens.find((t) => ALPHA_NUM_SUFFIX_ONLY_RE.test(t));
-          if (!firstAlpha) return null;
-          const m = ALPHA_SUFFIX_RE.exec(firstAlpha);
-          return m?.[1] ?? null;
-        })()
-      : null;
-
+  // numberSuffix was already extracted from the correct token by
+  // extractLeadingParts() in classify() — pass through unchanged.
+  const numberSuffix = result.numberSuffix;
   return {
     raw: q,
     normalized,
