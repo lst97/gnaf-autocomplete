@@ -41,10 +41,19 @@ export function getReadWriteSql(): import("bun").SQL {
   return _sqlRw;
 }
 
-// Intentionally a no-op. The postgres.js pool is reused across test files
-// (Bun reuses worker processes), so nulling _sql/_sqlRw here would force a
-// reconnect on every test file boundary. The OS cleans up sockets at exit.
-// Callers (src/index.ts shutdown, afterAll hooks) should call this purely
-// for shutdown symmetry, not for state reset. For state reset between tests
-// use the targeted helpers: resetSuggestCache(), resetCorrector().
-export async function closeDb(): Promise<void> {}
+// Close database connections gracefully on shutdown.
+// In test mode this is a no-op because Bun reuses worker processes across
+// test files and ending the pool would force an expensive reconnect.
+// In production (NODE_ENV !== "test") we call .end() on each pool so the
+// DB server doesn't hold orphaned connections during Docker restarts.
+// We intentionally do NOT null _sql/_sqlRw — the OS cleans up at exit and
+// nulling would break any in-flight query that references the stale module
+// variable.
+export async function closeDb(): Promise<void> {
+  if (process.env.NODE_ENV !== "test") {
+    // postgres.js/ Bun.sql .end() closes all idle connections, waits for
+    // active queries to finish, then resolves.
+    if (_sql) await _sql.end();
+    if (_sqlRw) await _sqlRw.end();
+  }
+}
