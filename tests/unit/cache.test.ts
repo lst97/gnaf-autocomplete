@@ -238,11 +238,18 @@ describe("LruCache TTL edge cases", () => {
     });
   });
 
-  test("evictStale does not throw on empty cache", () => {
-    const c = new LruCache<string, string>(10, 5000);
-    // Access after clearing should not throw
-    c.clear();
+  test("stale entries are evicted lazily on read, not on write", () => {
+    const c = new LruCache<string, string>(10, 10); // 10ms TTL
     c.set("a", "1");
-    expect(c.get("a")).toBe("1");
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        // set() must NOT evict stale entries — only get/has do (see AGENTS.md).
+        c.set("b", "2");
+        expect(c.size).toBe(2); // stale "a" still in map until next read
+        expect(c.get("a")).toBeUndefined(); // lazy eviction on read
+        expect(c.get("b")).toBe("2");
+        resolve();
+      }, 20);
+    });
   });
 });

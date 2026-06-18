@@ -1,0 +1,118 @@
+name: Bug Report
+description: File a bug report to help us improve
+title: "fix(scope): "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report. Please provide as much detail as possible.
+
+  - type: input
+    id: version
+    attributes:
+      label: G-NAF Release / Commit
+      description: Which G-NAF release or git commit are you running?
+      placeholder: "MAY 2026 / abc1234"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of the system is affected?
+      options:
+        - API (HTTP routes, middleware)
+        - Query Router (tier selection, routing)
+        - Database (indexes, MV, queries)
+        - Loader (PSV import, data processing)
+        - Corrector (SymSpell typo correction)
+        - Tokenizer / Scorer / Formatter
+        - Test UI (pages/)
+        - Docker / Deployment
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug.
+      placeholder: "When I query /suggest with X, the API returns Y instead of Z."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this behaviour?
+      placeholder: |
+        1. Start the server with 'bun run dev'
+        2. Send request 'curl http://localhost:8000/suggest?q=... -H "X-API-Key: ..."'
+        3. Observe that ...
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behaviour
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behaviour
+      description: What actually happened? Include error messages, stack traces, or response payloads.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Your runtime environment.
+      placeholder: |
+        - OS: macOS 26.5.1 / Ubuntu 24.04
+        - Bun: 1.3.14
+        - PostgreSQL: 18 (Docker)
+        - Docker memory limit: 16GB
+        - Host RAM: 48GB
+      value: |
+        - OS:
+        - Bun:
+        - PostgreSQL:
+        - Docker memory limit:
+        - Host RAM:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Log Output
+      description: Paste any relevant log output (from Pino logs, docker logs, etc.).
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission Checklist
+      description: By submitting this issue, you confirm the following.
+      options:
+        - label: I have searched existing issues to confirm this is not a duplicate.
+          required: true
+        - label: I am running the latest version of the code (or have confirmed the bug exists on main).
+          required: true
+        - label: I have included all relevant environment details.
+          required: true

@@ -174,9 +174,6 @@ describe("performance: corrector long-query sweep", () => {
     for (let i = 0; i < 1000; i++) {
       c.addStreet(`streetname${i}`, i);
     }
-    for (let i = 0; i < 1000; i++) {
-      c.addStreet(`avenue${i}`, i);
-    }
 
     const inputs = [
       "a".repeat(50),

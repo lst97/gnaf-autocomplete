@@ -49,10 +49,3 @@ export class ValidationError extends AppError {
     this.name = "ValidationError";
   }
 }
-
-export class DatabaseError extends AppError {
-  constructor(message: string) {
-    super(message, 500, ERROR_CODES.DATABASE_ERROR);
-    this.name = "DatabaseError";
-  }
-}

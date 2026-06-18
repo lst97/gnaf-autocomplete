@@ -93,6 +93,7 @@ export function tier1StreetQuery(
   postcode: string | null = null,
   flatNumber: number | null = null,
   streetType: string | null = null,
+  numberSuffix: string | null = null,
 ) {
   const conditions: string[] = ["street_lc LIKE $1"];
   const params: (string | number)[] = [`${streetPrefix}%`];
@@ -134,6 +135,13 @@ export function tier1StreetQuery(
     params.push(`${String(numberFirst)} `);
     orderClause = `(strpos(lower(display), $${nextIdx}) > 0) DESC, ${orderClause}`;
     nextIdx++;
+    // For alphanumeric numbers ("6a", "14b"), boost the exact display-text
+    // match ("6A ALBERT AV") over the plain number ("6 ALBERT AV").
+    if (numberSuffix) {
+      params.push(`${String(numberFirst)}${numberSuffix} `);
+      orderClause = `(strpos(lower(display), $${nextIdx}) > 0) DESC, ${orderClause}`;
+      nextIdx++;
+    }
   }
 
   if (locale) {

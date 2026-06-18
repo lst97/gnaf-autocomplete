@@ -1,9 +1,17 @@
 import { describe, expect, test } from "bun:test";
+import { sanitizeQuery, isValidAddressQuery } from "../../src/api/suggest";
+import { isAlphanumericJunkToken } from "../../src/search/tokenizer";
 
-// Test sanitizeQuery by importing the function indirectly through the suggest module
-// Since it's not exported, we test the same regex directly
-function sanitizeQuery(q: string): string {
-  return q.replace(/[^a-zA-Z0-9\s\-',./]/g, "").trim();
+// Parse-and-clamp helpers mirroring the logic in suggestRoute.
+// These test the regression that parseInt("0") || default returns the
+// default 10 for limit=0 instead of clamping to 1.
+function parseLimit(s: string | undefined): number {
+  const parsed = Number.parseInt(s ?? "", 10);
+  return Number.isNaN(parsed) ? 10 : Math.min(Math.max(parsed, 1), 50);
+}
+function parseOffset(s: string | undefined): number {
+  const parsed = Number.parseInt(s ?? "", 10);
+  return Number.isNaN(parsed) ? 0 : Math.min(Math.max(parsed, 0), 1000);
 }
 
 describe("sanitizeQuery", () => {
@@ -121,30 +129,6 @@ describe("sanitizeQuery", () => {
   });
 });
 
-// ── isValidAddressQuery ──────────────────────────────────────────
-
-const VALID_STATE_CODES = new Set(["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA", "OT"]);
-function isValidAddressQuery(q: string): boolean {
-  if (q.length === 0) return false;
-  if (/^\d{4}$/.test(q.trim())) return true;
-  if (/^\d+-\d+$/.test(q.trim())) return true;
-  if (!/[a-zA-Z]/.test(q)) return false;
-  if (VALID_STATE_CODES.has(q.trim().toUpperCase())) return false;
-  const tokens = q.split(/\s+/);
-  let consecutiveDigitTokens = 0;
-  for (const token of tokens) {
-    if (/^\d+$/.test(token)) {
-      consecutiveDigitTokens++;
-      if (consecutiveDigitTokens >= 3) return false;
-    } else {
-      consecutiveDigitTokens = 0;
-    }
-  }
-  const meaningful = q.replace(/[^a-zA-Z0-9]/g, "").length;
-  if (meaningful < 2) return false;
-  return true;
-}
-
 describe("isValidAddressQuery", () => {
   // ── Valid queries ──
   test("'sydney' — valid locality", () => {
@@ -238,5 +222,181 @@ describe("isValidAddressQuery", () => {
 
   test("'' — empty string", () => {
     expect(isValidAddressQuery("")).toBe(false);
+  });
+
+  // ── Regression: 12abc / 1abc / 12ABC took 15+ seconds via tier2 trigram ──
+  test("'12abc' — alphanumeric junk is rejected (was 15s slow path)", () => {
+    expect(isValidAddressQuery("12abc")).toBe(false);
+  });
+
+  test("'12ABC' — uppercase variant also rejected", () => {
+    expect(isValidAddressQuery("12ABC")).toBe(false);
+  });
+
+  test("'1abc' — single-digit + 3-letter junk is rejected", () => {
+    expect(isValidAddressQuery("1abc")).toBe(false);
+  });
+
+  test("'1234abc' — any length junk is rejected", () => {
+    expect(isValidAddressQuery("1234abc")).toBe(false);
+  });
+
+  test("'12a' — single alphanumeric token REJECTED (was 14s tier2 slow path)", () => {
+    expect(isValidAddressQuery("12a")).toBe(false);
+  });
+
+  test("'1a' — single alphanumeric token REJECTED (was tier2 slow path)", () => {
+    expect(isValidAddressQuery("1a")).toBe(false);
+  });
+
+  test("'12abc sydney' — junk token anywhere in query rejects the whole query", () => {
+    expect(isValidAddressQuery("12abc sydney")).toBe(false);
+  });
+
+  test("'sydney 12abc' — junk token at end also rejects", () => {
+    expect(isValidAddressQuery("sydney 12abc")).toBe(false);
+  });
+
+  // ── Slash-delimited junk (tokenization mismatch regression) ──
+  test("'12abc/5' — slash-delimited junk is rejected (was bypassing)", () => {
+    expect(isValidAddressQuery("12abc/5")).toBe(false);
+  });
+
+  test("'12abc/5 main st' — slash-delimited junk in multi-token query rejected", () => {
+    expect(isValidAddressQuery("12abc/5 main st")).toBe(false);
+  });
+
+  test("'1/6 fortuna' — legitimate slash flat-pattern still passes", () => {
+    expect(isValidAddressQuery("1/6 fortuna")).toBe(true);
+  });
+
+  test("'21st' — single alphanumeric street-type token REJECTED (was tier2 slow path)", () => {
+    expect(isValidAddressQuery("21st")).toBe(false);
+  });
+
+  test("'99rd' — single alphanumeric street-type token REJECTED (was tier2 slow path)", () => {
+    expect(isValidAddressQuery("99rd")).toBe(false);
+  });
+
+  test("'12 main st' — legitimate AU address with street type passes", () => {
+    expect(isValidAddressQuery("12 main st")).toBe(true);
+  });
+
+  test("'12a main st' — alphanumeric street number with letter suffix passes", () => {
+    expect(isValidAddressQuery("12a main st")).toBe(true);
+  });
+
+  // ── Ordinal street number queries (regression) ──
+  test("'2nd avenue' — ordinal street number passes (was falsely rejected)", () => {
+    expect(isValidAddressQuery("2nd avenue")).toBe(true);
+  });
+
+  test("'4th street' — ordinal street number passes (was falsely rejected)", () => {
+    expect(isValidAddressQuery("4th street")).toBe(true);
+  });
+
+  test("'2nd' — bare ordinal single token REJECTED (no street name)", () => {
+    expect(isValidAddressQuery("2nd")).toBe(false);
+  });
+
+  test("'4th' — bare ordinal single token REJECTED (no street name)", () => {
+    expect(isValidAddressQuery("4th")).toBe(false);
+  });
+
+  // ── Rule 7: single-token queries must be searchable on their own ──
+  test("'12' — pure 2-digit number REJECTED (no postcode, no street)", () => {
+    expect(isValidAddressQuery("12")).toBe(false);
+  });
+
+  test("'99' — pure 2-digit number REJECTED", () => {
+    expect(isValidAddressQuery("99")).toBe(false);
+  });
+
+  test("'1' — single digit REJECTED", () => {
+    expect(isValidAddressQuery("1")).toBe(false);
+  });
+
+  test("'200' — 3-digit partial postcode REJECTED (AU postcodes are 4 digits)", () => {
+    expect(isValidAddressQuery("200")).toBe(false);
+  });
+
+  test("'2000' — 4-digit postcode is VALID", () => {
+    expect(isValidAddressQuery("2000")).toBe(true);
+  });
+
+  test("'0800' — 4-digit postcode with leading zero is VALID (NT)", () => {
+    expect(isValidAddressQuery("0800")).toBe(true);
+  });
+
+  test("'12 sydney' — number + locality passes (multi-token, tier1 fast)", () => {
+    expect(isValidAddressQuery("12 sydney")).toBe(true);
+  });
+
+  test("'12 nsw' — number + state passes (multi-token, tier0_number fast)", () => {
+    expect(isValidAddressQuery("12 nsw")).toBe(true);
+  });
+
+  test("'12 main' — number + street passes (multi-token, tier1 fast)", () => {
+    expect(isValidAddressQuery("12 main")).toBe(true);
+  });
+
+  test("'gresford' — alphabetic street name alone is VALID (single token)", () => {
+    expect(isValidAddressQuery("gresford")).toBe(true);
+  });
+
+  test("'ab' — 2-letter alphabetic is VALID (single token)", () => {
+    expect(isValidAddressQuery("ab")).toBe(true);
+  });
+});
+
+describe("parseLimit (regression: limit=0 gave default 10)", () => {
+  test("limit=0 clamps to 1", () => {
+    expect(parseLimit("0")).toBe(1);
+  });
+
+  test("limit=10 passes through", () => {
+    expect(parseLimit("10")).toBe(10);
+  });
+
+  test("limit=999 clamps to 50", () => {
+    expect(parseLimit("999")).toBe(50);
+  });
+
+  test("limit=abc defaults to 10", () => {
+    expect(parseLimit("abc")).toBe(10);
+  });
+
+  test("limit=(empty) defaults to 10", () => {
+    expect(parseLimit(undefined)).toBe(10);
+  });
+
+  test("limit=1 passes through (minimum)", () => {
+    expect(parseLimit("1")).toBe(1);
+  });
+});
+
+describe("parseOffset (regression: offset=0 works correctly)", () => {
+  test("offset=0 passes through", () => {
+    expect(parseOffset("0")).toBe(0);
+  });
+
+  test("offset=50 passes through", () => {
+    expect(parseOffset("50")).toBe(50);
+  });
+
+  test("offset=-5 clamps to 0", () => {
+    expect(parseOffset("-5")).toBe(0);
+  });
+
+  test("offset=999999 clamps to 1000", () => {
+    expect(parseOffset("999999")).toBe(1000);
+  });
+
+  test("offset=abc defaults to 0", () => {
+    expect(parseOffset("abc")).toBe(0);
+  });
+
+  test("offset=(empty) defaults to 0", () => {
+    expect(parseOffset(undefined)).toBe(0);
   });
 });

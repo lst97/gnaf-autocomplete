@@ -1,0 +1,792 @@
+{
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/applypatch-msg": {
+    "mtime": 1781622953.078237,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/commit-msg": {
+    "mtime": 1781622953.0781274,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/h": {
+    "mtime": 1781622953.0776873,
+    "ast_hash": "15239a01c5554e56ff745570fb583a91",
+    "semantic_hash": "15239a01c5554e56ff745570fb583a91"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/husky.sh": {
+    "mtime": 1781622953.0788198,
+    "ast_hash": "13871d2ab13e8423790ecb2c01c78c18",
+    "semantic_hash": "13871d2ab13e8423790ecb2c01c78c18"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/post-applypatch": {
+    "mtime": 1781622953.078353,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/post-checkout": {
+    "mtime": 1781622953.0785847,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/post-commit": {
+    "mtime": 1781622953.0781853,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/post-merge": {
+    "mtime": 1781622953.0786362,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/post-rewrite": {
+    "mtime": 1781622953.0785115,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/pre-applypatch": {
+    "mtime": 1781622953.078293,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/pre-auto-gc": {
+    "mtime": 1781622953.078757,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/pre-commit": {
+    "mtime": 1781622953.077794,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/pre-merge-commit": {
+    "mtime": 1781622953.0778584,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/pre-push": {
+    "mtime": 1781622953.0786912,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/pre-rebase": {
+    "mtime": 1781622953.0784304,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.husky/_/prepare-commit-msg": {
+    "mtime": 1781622953.0779312,
+    "ast_hash": "0b71c2e7d39daa010985d529f1320b37",
+    "semantic_hash": "0b71c2e7d39daa010985d529f1320b37"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/benchmark/bench.ts": {
+    "mtime": 1781690695.8600783,
+    "ast_hash": "d55edfadeaf01a5ac3d0c60fe65c98c6",
+    "semantic_hash": "d55edfadeaf01a5ac3d0c60fe65c98c6"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/benchmark/tiers.ts": {
+    "mtime": 1781690695.8601868,
+    "ast_hash": "ffe860a4ccf412504c1cb2ea816fae40",
+    "semantic_hash": "ffe860a4ccf412504c1cb2ea816fae40"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/benchmark/verify-tiers.ts": {
+    "mtime": 1781598390.3623204,
+    "ast_hash": "6f8188ccc74c5cb68652fa9420bccfce",
+    "semantic_hash": "6f8188ccc74c5cb68652fa9420bccfce"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/biome.json": {
+    "mtime": 1781252838.6435173,
+    "ast_hash": "5579e7d44f16dc5f99f771f929bc6a69",
+    "semantic_hash": "5579e7d44f16dc5f99f771f929bc6a69"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/docker-entrypoint.sh": {
+    "mtime": 1781642889.4348183,
+    "ast_hash": "7a526e3467290fac521172813060dbd2",
+    "semantic_hash": "7a526e3467290fac521172813060dbd2"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/package.json": {
+    "mtime": 1781626396.096684,
+    "ast_hash": "aa8502746332254989fe63af5a53f2a3",
+    "semantic_hash": "aa8502746332254989fe63af5a53f2a3"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/assets/common.js": {
+    "mtime": 1781680168.484436,
+    "ast_hash": "a661ffe440d3319ef5a5a26fbac5be0d",
+    "semantic_hash": "a661ffe440d3319ef5a5a26fbac5be0d"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/assets/detail.js": {
+    "mtime": 1781679168.8857617,
+    "ast_hash": "205c742201bd5a12908d763b0a09e02c",
+    "semantic_hash": "205c742201bd5a12908d763b0a09e02c"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/assets/keys.js": {
+    "mtime": 1781690649.602212,
+    "ast_hash": "738f7bafc1d464091274f7b8482e063f",
+    "semantic_hash": "738f7bafc1d464091274f7b8482e063f"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/assets/suggest.js": {
+    "mtime": 1781690649.6022067,
+    "ast_hash": "052ff3972a89a285a2e7b7c60798146b",
+    "semantic_hash": "052ff3972a89a285a2e7b7c60798146b"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/assets/system.js": {
+    "mtime": 1781679168.8853984,
+    "ast_hash": "cd2b9205dabce9df133dc63b0b9f75a2",
+    "semantic_hash": "cd2b9205dabce9df133dc63b0b9f75a2"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/scripts/build-fixture.ts": {
+    "mtime": 1781639037.8290958,
+    "ast_hash": "bc522b452949bec48ad39806eba5060e",
+    "semantic_hash": "bc522b452949bec48ad39806eba5060e"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/scripts/create-gnaf.ts": {
+    "mtime": 1781642601.3125455,
+    "ast_hash": "37ba60dbd3fcff5351a00ee7f6114473",
+    "semantic_hash": "37ba60dbd3fcff5351a00ee7f6114473"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/scripts/lib/gnaf-download.ts": {
+    "mtime": 1781640319.4523385,
+    "ast_hash": "6eee5d8465e7304b37caaeee57c63b13",
+    "semantic_hash": "6eee5d8465e7304b37caaeee57c63b13"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/scripts/load-worker.ts": {
+    "mtime": 1781639063.123615,
+    "ast_hash": "6b27f610f3e2049a71244ea9f582124d",
+    "semantic_hash": "6b27f610f3e2049a71244ea9f582124d"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/scripts/load.ts": {
+    "mtime": 1781639037.8314848,
+    "ast_hash": "023570998f882cce68a0ca9b13d426ce",
+    "semantic_hash": "023570998f882cce68a0ca9b13d426ce"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/scripts/update-gnaf.ts": {
+    "mtime": 1781639847.0591753,
+    "ast_hash": "516f9308add40e0a51886d12ca033d31",
+    "semantic_hash": "516f9308add40e0a51886d12ca033d31"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/001_extensions.sql": {
+    "mtime": 1781336053.251674,
+    "ast_hash": "2883ce214e8f749485fd798aa44f27e5",
+    "semantic_hash": "2883ce214e8f749485fd798aa44f27e5"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/003b_abbrev_map.sql": {
+    "mtime": 1781264250.13634,
+    "ast_hash": "ff49d0aa8fc431c1be44b0502369bfcd",
+    "semantic_hash": "ff49d0aa8fc431c1be44b0502369bfcd"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/003c_expand_fn.sql": {
+    "mtime": 1781443135.7386777,
+    "ast_hash": "16245202b2778949858f86bf50df0ec5",
+    "semantic_hash": "16245202b2778949858f86bf50df0ec5"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/005_prewarm.sql": {
+    "mtime": 1781450602.990977,
+    "ast_hash": "2e4b28cdc9af4cab4ad30352df708d28",
+    "semantic_hash": "2e4b28cdc9af4cab4ad30352df708d28"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/005_staging.sql": {
+    "mtime": 1781457183.743593,
+    "ast_hash": "ccd947d636b8ee859f1b30e33cab7304",
+    "semantic_hash": "ccd947d636b8ee859f1b30e33cab7304"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/006_staging_indexes.sql": {
+    "mtime": 1781252388.9095538,
+    "ast_hash": "562bec679c2a5d0d99953023fe9e1820",
+    "semantic_hash": "562bec679c2a5d0d99953023fe9e1820"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/007_mv.sql": {
+    "mtime": 1781465357.2680266,
+    "ast_hash": "a685990f9366a3570c2f2b49d5e30097",
+    "semantic_hash": "a685990f9366a3570c2f2b49d5e30097"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/008_api_keys.sql": {
+    "mtime": 1781598390.365339,
+    "ast_hash": "e4cd9a8c2ddc704dd439594e97559ce5",
+    "semantic_hash": "e4cd9a8c2ddc704dd439594e97559ce5"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/008_drop_unused.sql": {
+    "mtime": 1781278712.545897,
+    "ast_hash": "f925b4913c26db06229609a0c787676a",
+    "semantic_hash": "f925b4913c26db06229609a0c787676a"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/008_gnaf_release.sql": {
+    "mtime": 1781517008.7905452,
+    "ast_hash": "aaa7de436abcda3f00710083014cf9d6",
+    "semantic_hash": "aaa7de436abcda3f00710083014cf9d6"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/009_domain_verify.sql": {
+    "mtime": 1781350831.895152,
+    "ast_hash": "24bce84bf75c33f8f0a2d4091ba9d962",
+    "semantic_hash": "24bce84bf75c33f8f0a2d4091ba9d962"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/010_last_verified.sql": {
+    "mtime": 1781425817.2963135,
+    "ast_hash": "1e8a3cd4f972de63723e1409753b9271",
+    "semantic_hash": "1e8a3cd4f972de63723e1409753b9271"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/011_gnaf_roles.sql": {
+    "mtime": 1781513033.53647,
+    "ast_hash": "b5868420bd5225a0a51ec7b3a0196d13",
+    "semantic_hash": "b5868420bd5225a0a51ec7b3a0196d13"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/012_api_key_expiry.sql": {
+    "mtime": 1781508812.7813864,
+    "ast_hash": "3346a01ce827a6916a4bb78aac7f34c3",
+    "semantic_hash": "3346a01ce827a6916a4bb78aac7f34c3"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/address.ts": {
+    "mtime": 1781598390.3657045,
+    "ast_hash": "fea1203c4fc84a1843387183a663db91",
+    "semantic_hash": "fea1203c4fc84a1843387183a663db91"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/auth.ts": {
+    "mtime": 1781598390.3659127,
+    "ast_hash": "3d7ab6a0163e9a5c6572db385831ce74",
+    "semantic_hash": "3d7ab6a0163e9a5c6572db385831ce74"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/check-update.ts": {
+    "mtime": 1781598462.9510314,
+    "ast_hash": "f8bf482631fa9fc82366e9b1a8f0789f",
+    "semantic_hash": "f8bf482631fa9fc82366e9b1a8f0789f"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/health.ts": {
+    "mtime": 1781430198.273633,
+    "ast_hash": "d3ad0c0f983599dcb7e29205021c4632",
+    "semantic_hash": "d3ad0c0f983599dcb7e29205021c4632"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/keys-gen.ts": {
+    "mtime": 1781598390.3660667,
+    "ast_hash": "8a2bf7e1d63e7fa702463a7a1d506344",
+    "semantic_hash": "8a2bf7e1d63e7fa702463a7a1d506344"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/keys-mgmt.ts": {
+    "mtime": 1781598390.3663287,
+    "ast_hash": "c31173cff5d8a228c21fd7ee33c0e00d",
+    "semantic_hash": "c31173cff5d8a228c21fd7ee33c0e00d"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/keys-recover.ts": {
+    "mtime": 1781598454.689664,
+    "ast_hash": "4447963033d1c702fbca2c22d152a226",
+    "semantic_hash": "4447963033d1c702fbca2c22d152a226"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/keys-revoke.ts": {
+    "mtime": 1781598453.8957946,
+    "ast_hash": "3b77685dc9bfce109359f990b33ae310",
+    "semantic_hash": "3b77685dc9bfce109359f990b33ae310"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/keys.ts": {
+    "mtime": 1781598390.366751,
+    "ast_hash": "d3d2329c82347184b02aeed2dedc228a",
+    "semantic_hash": "d3d2329c82347184b02aeed2dedc228a"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/openapi.ts": {
+    "mtime": 1781598390.3669236,
+    "ast_hash": "df5dcf33f7327523db816ef85ab15f79",
+    "semantic_hash": "df5dcf33f7327523db816ef85ab15f79"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/static.ts": {
+    "mtime": 1781690330.1866455,
+    "ast_hash": "1df9118f7f25a06694eb1fd4d8eec1dc",
+    "semantic_hash": "1df9118f7f25a06694eb1fd4d8eec1dc"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/stats.ts": {
+    "mtime": 1781598390.3672028,
+    "ast_hash": "c8d6d38051fb83b7f0580f15b11f49f8",
+    "semantic_hash": "c8d6d38051fb83b7f0580f15b11f49f8"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/suggest.ts": {
+    "mtime": 1781778048.5175226,
+    "ast_hash": "817b9c908b6f586accb77b72b7fd1893",
+    "semantic_hash": "817b9c908b6f586accb77b72b7fd1893"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/warmup.ts": {
+    "mtime": 1781598390.3674994,
+    "ast_hash": "99e99bcc4c9c079c8e6a5943941c8e86",
+    "semantic_hash": "99e99bcc4c9c079c8e6a5943941c8e86"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/db/client.ts": {
+    "mtime": 1781765039.0559275,
+    "ast_hash": "33e7542af46ee69beb7a0377c5cb4569",
+    "semantic_hash": "33e7542af46ee69beb7a0377c5cb4569"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/db/queries.ts": {
+    "mtime": 1781706047.742518,
+    "ast_hash": "f0a58f480e53dfaf7dc2d747f0d30872",
+    "semantic_hash": "f0a58f480e53dfaf7dc2d747f0d30872"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/db/router.ts": {
+    "mtime": 1781765849.5176563,
+    "ast_hash": "f91b8fe13ec0b17441809f5b6a7a9529",
+    "semantic_hash": "f91b8fe13ec0b17441809f5b6a7a9529"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/env.ts": {
+    "mtime": 1781637838.3468277,
+    "ast_hash": "e0a74fdfee302dcfac78decf25a8a878",
+    "semantic_hash": "e0a74fdfee302dcfac78decf25a8a878"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/index.ts": {
+    "mtime": 1781765979.3698833,
+    "ast_hash": "86f34a9c41ba46e0a3737b80896c9207",
+    "semantic_hash": "86f34a9c41ba46e0a3737b80896c9207"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/lib/cache.ts": {
+    "mtime": 1781778047.8482127,
+    "ast_hash": "c6172a9d95f9eb48e235a01020987a08",
+    "semantic_hash": "c6172a9d95f9eb48e235a01020987a08"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/lib/client-ip.ts": {
+    "mtime": 1781508818.6807022,
+    "ast_hash": "626b861b0aa226ee4f91631b635a463f",
+    "semantic_hash": "626b861b0aa226ee4f91631b635a463f"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/lib/errors.ts": {
+    "mtime": 1781766029.6248853,
+    "ast_hash": "7140a1472d381cbccb409691e6487b29",
+    "semantic_hash": "7140a1472d381cbccb409691e6487b29"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/lib/key-hash.ts": {
+    "mtime": 1781508815.5171611,
+    "ast_hash": "f24aa8ec6eb6e292075cef851b5ddd4e",
+    "semantic_hash": "f24aa8ec6eb6e292075cef851b5ddd4e"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/lib/logger.ts": {
+    "mtime": 1781598390.3686914,
+    "ast_hash": "b9597d68713a0b25426db99267993992",
+    "semantic_hash": "b9597d68713a0b25426db99267993992"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/lib/request.ts": {
+    "mtime": 1781429607.0523145,
+    "ast_hash": "f8ff96c639d45c45e2937ba8638b9ff5",
+    "semantic_hash": "f8ff96c639d45c45e2937ba8638b9ff5"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/lib/touch-key.ts": {
+    "mtime": 1781522841.9114242,
+    "ast_hash": "e5956821aa6f7df02d425137e27825c1",
+    "semantic_hash": "e5956821aa6f7df02d425137e27825c1"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/lib/version-check.ts": {
+    "mtime": 1781598487.8114645,
+    "ast_hash": "c96d053db2899e83e3c38a9b0c952b7f",
+    "semantic_hash": "c96d053db2899e83e3c38a9b0c952b7f"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/search/corrector.ts": {
+    "mtime": 1781777708.2389174,
+    "ast_hash": "8dfc362dc21a2af3dbd3ccfbdce53391",
+    "semantic_hash": "8dfc362dc21a2af3dbd3ccfbdce53391"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/search/formatter.ts": {
+    "mtime": 1781598481.0781503,
+    "ast_hash": "3239957cd3a442302b359cf0d7f65762",
+    "semantic_hash": "3239957cd3a442302b359cf0d7f65762"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/search/scorer.ts": {
+    "mtime": 1781278534.6769705,
+    "ast_hash": "5a18606629d016ef2b577d42cb25a9ae",
+    "semantic_hash": "5a18606629d016ef2b577d42cb25a9ae"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/search/tokenizer.ts": {
+    "mtime": 1781772304.6892536,
+    "ast_hash": "f1e3f6ee3c4b599a0b0ec1e504a445b4",
+    "semantic_hash": "f1e3f6ee3c4b599a0b0ec1e504a445b4"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/sql/address.ts": {
+    "mtime": 1781427644.2083714,
+    "ast_hash": "3e12e8e9a0081b3b2f40fc771e58bafe",
+    "semantic_hash": "3e12e8e9a0081b3b2f40fc771e58bafe"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/sql/auth.ts": {
+    "mtime": 1781598390.3690894,
+    "ast_hash": "df2d8830ce0fcc6f0161fdec3055ab07",
+    "semantic_hash": "df2d8830ce0fcc6f0161fdec3055ab07"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/sql/corrector.ts": {
+    "mtime": 1781427658.1090622,
+    "ast_hash": "57a123ca12793aa46f6568f8be4cccf3",
+    "semantic_hash": "57a123ca12793aa46f6568f8be4cccf3"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/sql/health.ts": {
+    "mtime": 1781428743.0115287,
+    "ast_hash": "710e23b99ec8d7948061877d644050b9",
+    "semantic_hash": "710e23b99ec8d7948061877d644050b9"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/sql/keys.ts": {
+    "mtime": 1781598390.3692307,
+    "ast_hash": "83b79f4bce93247419eeff4f8a2af977",
+    "semantic_hash": "83b79f4bce93247419eeff4f8a2af977"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/sql/stats.ts": {
+    "mtime": 1781598390.3694441,
+    "ast_hash": "9a06466112d864d87c95e9f03faa93c5",
+    "semantic_hash": "9a06466112d864d87c95e9f03faa93c5"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/sql/warmup.ts": {
+    "mtime": 1781430198.2738142,
+    "ast_hash": "ddad766483ed696deaac32513aa5cb25",
+    "semantic_hash": "ddad766483ed696deaac32513aa5cb25"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/types/index.ts": {
+    "mtime": 1781429587.2664227,
+    "ast_hash": "0179e9f9dfd23ca7811868e507c95501",
+    "semantic_hash": "0179e9f9dfd23ca7811868e507c95501"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/address.test.ts": {
+    "mtime": 1781514501.902999,
+    "ast_hash": "ec9bbba620e0fb531c2cc6c935622413",
+    "semantic_hash": "ec9bbba620e0fb531c2cc6c935622413"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/auth.test.ts": {
+    "mtime": 1781514491.9598424,
+    "ast_hash": "8b9564993a84a5cf3fc32e8e22fea2d3",
+    "semantic_hash": "8b9564993a84a5cf3fc32e8e22fea2d3"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/client.test.ts": {
+    "mtime": 1781514460.3913012,
+    "ast_hash": "aab7bcb93f97bb787fc9cc2960a8dd74",
+    "semantic_hash": "aab7bcb93f97bb787fc9cc2960a8dd74"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/corrector.test.ts": {
+    "mtime": 1781514481.8645058,
+    "ast_hash": "2f3a482ec0d1c12d91b9050001fd5bb4",
+    "semantic_hash": "2f3a482ec0d1c12d91b9050001fd5bb4"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/full-pipeline.test.ts": {
+    "mtime": 1781690695.8654633,
+    "ast_hash": "f85895e451dd8fdd0a462a4eca9222fe",
+    "semantic_hash": "f85895e451dd8fdd0a462a4eca9222fe"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/health.test.ts": {
+    "mtime": 1781514462.8738742,
+    "ast_hash": "69454baff16502d32bcd53455dd8a0bc",
+    "semantic_hash": "69454baff16502d32bcd53455dd8a0bc"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/integration-suite.test.ts": {
+    "mtime": 1781690695.8647356,
+    "ast_hash": "8288148a1157cb19cb25fd797c853570",
+    "semantic_hash": "8288148a1157cb19cb25fd797c853570"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/performance.test.ts": {
+    "mtime": 1781690695.8631723,
+    "ast_hash": "c61541fd4ae4de0eb7a9e3b43def74ec",
+    "semantic_hash": "c61541fd4ae4de0eb7a9e3b43def74ec"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/queries.test.ts": {
+    "mtime": 1781514477.247773,
+    "ast_hash": "84fd259c2165d13aa4c3e576a3de6763",
+    "semantic_hash": "84fd259c2165d13aa4c3e576a3de6763"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/slow-query-sweep.test.ts": {
+    "mtime": 1781777786.5440657,
+    "ast_hash": "5312fe1a4e26a39531e98a96504986bc",
+    "semantic_hash": "5312fe1a4e26a39531e98a96504986bc"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/stats.test.ts": {
+    "mtime": 1781514496.992938,
+    "ast_hash": "d3df0bde218ab2bfda32aa0bf070e0a3",
+    "semantic_hash": "d3df0bde218ab2bfda32aa0bf070e0a3"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/db/touch-key.test.ts": {
+    "mtime": 1781514506.6502569,
+    "ast_hash": "7291e19ac1603b60d81c5c5a4184ce77",
+    "semantic_hash": "7291e19ac1603b60d81c5c5a4184ce77"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/fixture/autocomplete.test.ts": {
+    "mtime": 1781690695.8631766,
+    "ast_hash": "fa93d1704e7481677516d94def9f98f2",
+    "semantic_hash": "fa93d1704e7481677516d94def9f98f2"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/fixtures/addresses.json": {
+    "mtime": 1781690695.8790054,
+    "ast_hash": "699c8b96b03add4c3d0f375e5a691826",
+    "semantic_hash": "699c8b96b03add4c3d0f375e5a691826"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/integration/api.test.ts": {
+    "mtime": 1781690695.8647678,
+    "ast_hash": "3511cbf0a85a88f69b89085f8a02bd48",
+    "semantic_hash": "3511cbf0a85a88f69b89085f8a02bd48"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/integration/auth.test.ts": {
+    "mtime": 1781598390.3709717,
+    "ast_hash": "a4f5526cf8bd9b0f10b33d9661d0ce17",
+    "semantic_hash": "a4f5526cf8bd9b0f10b33d9661d0ce17"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/integration/key-flow.test.ts": {
+    "mtime": 1781520499.4244344,
+    "ast_hash": "2d9b8968fefcecd093f5f1b8bf220d21",
+    "semantic_hash": "2d9b8968fefcecd093f5f1b8bf220d21"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/address.test.ts": {
+    "mtime": 1781598390.3711286,
+    "ast_hash": "cfc348d1d0fc3112940a0a8e3d3c7e39",
+    "semantic_hash": "cfc348d1d0fc3112940a0a8e3d3c7e39"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/cache.test.ts": {
+    "mtime": 1781764960.0038123,
+    "ast_hash": "1613b783860ea6201a728fbdbc1e5eb7",
+    "semantic_hash": "1613b783860ea6201a728fbdbc1e5eb7"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/client-ip.test.ts": {
+    "mtime": 1781513798.611566,
+    "ast_hash": "5cf651a9c7024aaf5cfc3a59f4427ae4",
+    "semantic_hash": "5cf651a9c7024aaf5cfc3a59f4427ae4"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/config.test.ts": {
+    "mtime": 1781690695.8643763,
+    "ast_hash": "8c60ccbfa3d430ff329dcfc9ec644b23",
+    "semantic_hash": "8c60ccbfa3d430ff329dcfc9ec644b23"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/corrector.test.ts": {
+    "mtime": 1781777761.5523822,
+    "ast_hash": "f9c488a09d7c95f76444328eb736b0cc",
+    "semantic_hash": "f9c488a09d7c95f76444328eb736b0cc"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/errors.test.ts": {
+    "mtime": 1781766059.0476506,
+    "ast_hash": "79da4cf41ab0bc4a2981adf3c0165ddd",
+    "semantic_hash": "79da4cf41ab0bc4a2981adf3c0165ddd"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/formatter.test.ts": {
+    "mtime": 1781265557.7490861,
+    "ast_hash": "ac4a6b1d1c39e5f70cfe3d7687b784ef",
+    "semantic_hash": "ac4a6b1d1c39e5f70cfe3d7687b784ef"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/key-hash.test.ts": {
+    "mtime": 1781690695.8638985,
+    "ast_hash": "57f78564de2a60cdc25aa9ee4fe9ebc4",
+    "semantic_hash": "57f78564de2a60cdc25aa9ee4fe9ebc4"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/keys.test.ts": {
+    "mtime": 1781598390.3720322,
+    "ast_hash": "9d848234e4fd6e1600d0d76787d529d0",
+    "semantic_hash": "9d848234e4fd6e1600d0d76787d529d0"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/logger.test.ts": {
+    "mtime": 1781690695.863998,
+    "ast_hash": "1a3e0ad68438737d2298d12c24a6e0c6",
+    "semantic_hash": "1a3e0ad68438737d2298d12c24a6e0c6"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/request.test.ts": {
+    "mtime": 1781690695.8645291,
+    "ast_hash": "91760843919fd8f668345f00dc96bcdd",
+    "semantic_hash": "91760843919fd8f668345f00dc96bcdd"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/router.test.ts": {
+    "mtime": 1781598390.3721762,
+    "ast_hash": "e0bf9e66b9198d29cc7717aa72168235",
+    "semantic_hash": "e0bf9e66b9198d29cc7717aa72168235"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/scorer.test.ts": {
+    "mtime": 1781598390.3723202,
+    "ast_hash": "48c3d62156547a5a7d7f13353ebd3311",
+    "semantic_hash": "48c3d62156547a5a7d7f13353ebd3311"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/suggest.test.ts": {
+    "mtime": 1781771741.1454406,
+    "ast_hash": "5e5869e4ea74d18db31e6a125e4bd9fc",
+    "semantic_hash": "5e5869e4ea74d18db31e6a125e4bd9fc"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/tokenizer.test.ts": {
+    "mtime": 1781771613.2504206,
+    "ast_hash": "f7559404f2ab9d4aeab269fd79e5dd23",
+    "semantic_hash": "f7559404f2ab9d4aeab269fd79e5dd23"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/version-check.test.ts": {
+    "mtime": 1781690695.860916,
+    "ast_hash": "53af7ef067a6b24c7784e9c507fb7d38",
+    "semantic_hash": "53af7ef067a6b24c7784e9c507fb7d38"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/unit/warmup.test.ts": {
+    "mtime": 1781690695.8601904,
+    "ast_hash": "b2d6884af6b69131215a606b6d9fa971",
+    "semantic_hash": "b2d6884af6b69131215a606b6d9fa971"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tsconfig.json": {
+    "mtime": 1781252352.714443,
+    "ast_hash": "676755bfa756e00a17d5e03cc4ce098f",
+    "semantic_hash": "676755bfa756e00a17d5e03cc4ce098f"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.github/ISSUE_TEMPLATE/bug_report.yml": {
+    "mtime": 1781759907.9671507,
+    "ast_hash": "18e4d71082d65a1761b1aae2066f72bb",
+    "semantic_hash": "18e4d71082d65a1761b1aae2066f72bb"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.github/ISSUE_TEMPLATE/config.yml": {
+    "mtime": 1781759922.0360222,
+    "ast_hash": "ff685de069f7851c3e0cdb3b6f29cb9d",
+    "semantic_hash": "ff685de069f7851c3e0cdb3b6f29cb9d"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.github/ISSUE_TEMPLATE/feature_request.yml": {
+    "mtime": 1781759913.2982311,
+    "ast_hash": "5c0821edeccd3eeb57729d460a8aec73",
+    "semantic_hash": "5c0821edeccd3eeb57729d460a8aec73"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.github/ISSUE_TEMPLATE/performance.yml": {
+    "mtime": 1781759920.029861,
+    "ast_hash": "f8da627c17f53ef038c052581557ff2f",
+    "semantic_hash": "f8da627c17f53ef038c052581557ff2f"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.github/workflows/cd.yml": {
+    "mtime": 1781686615.6620655,
+    "ast_hash": "b5514f60b0837af333ad022711223b4c",
+    "semantic_hash": "b5514f60b0837af333ad022711223b4c"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/.github/workflows/ci.yml": {
+    "mtime": 1781629857.9824305,
+    "ast_hash": "adad75ad388627a04c1c6f442f37e7bb",
+    "semantic_hash": "adad75ad388627a04c1c6f442f37e7bb"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/AGENTS.md": {
+    "mtime": 1781763572.466494,
+    "ast_hash": "fabbb29631c077824b21bf8fba18b408",
+    "semantic_hash": "fabbb29631c077824b21bf8fba18b408"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/CODE_OF_CONDUCT.md": {
+    "mtime": 1781759857.842763,
+    "ast_hash": "9a47181808353782f817b72765149c14",
+    "semantic_hash": "9a47181808353782f817b72765149c14"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/CONTRIBUTING.md": {
+    "mtime": 1781759887.6192508,
+    "ast_hash": "3803e8fd327c736f592751d175910fdf",
+    "semantic_hash": "3803e8fd327c736f592751d175910fdf"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/README.md": {
+    "mtime": 1781623334.613395,
+    "ast_hash": "058519bc13263bcf0326d81314287d5c",
+    "semantic_hash": "058519bc13263bcf0326d81314287d5c"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/SECURITY.md": {
+    "mtime": 1781598390.3619423,
+    "ast_hash": "489e3eb016c46e59d5a8d622dfad66a3",
+    "semantic_hash": "489e3eb016c46e59d5a8d622dfad66a3"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/benchmark/AGENTS.md": {
+    "mtime": 1781622717.695504,
+    "ast_hash": "90845e74e7b8df09854e3546873a502f",
+    "semantic_hash": "90845e74e7b8df09854e3546873a502f"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/docker-compose.yml": {
+    "mtime": 1781677170.990242,
+    "ast_hash": "2572c338b0040e3f22cc39991b8ad265",
+    "semantic_hash": "2572c338b0040e3f22cc39991b8ad265"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/.well-known/security.txt": {
+    "mtime": 1781468561.1473405,
+    "ast_hash": "758792879387a84f1c635f7f41c3dd12",
+    "semantic_hash": "758792879387a84f1c635f7f41c3dd12"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/AGENTS.md": {
+    "mtime": 1781622675.744485,
+    "ast_hash": "d7399461db339383e2a99827b8c032e5",
+    "semantic_hash": "d7399461db339383e2a99827b8c032e5"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/analytics.html": {
+    "mtime": 1781679476.6455677,
+    "ast_hash": "401c2da9d3b48ecabfa02b0627256367",
+    "semantic_hash": "401c2da9d3b48ecabfa02b0627256367"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/detail-tab.html": {
+    "mtime": 1781426692.1375148,
+    "ast_hash": "a4a411277c643e73439594cce556ee4d",
+    "semantic_hash": "a4a411277c643e73439594cce556ee4d"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/guide-tab.html": {
+    "mtime": 1781600715.4533982,
+    "ast_hash": "24173762ab0938a32e5ba010dd5ca7d8",
+    "semantic_hash": "24173762ab0938a32e5ba010dd5ca7d8"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/keys-tab.html": {
+    "mtime": 1781433343.2403028,
+    "ast_hash": "b14bfcfbe1ce9e652570e74e8f73eefd",
+    "semantic_hash": "b14bfcfbe1ce9e652570e74e8f73eefd"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/llms.txt": {
+    "mtime": 1781510951.4425285,
+    "ast_hash": "5178fc9ad9a4918a377036049fd8d490",
+    "semantic_hash": "5178fc9ad9a4918a377036049fd8d490"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/loader-tab.html": {
+    "mtime": 1781600868.642132,
+    "ast_hash": "36d842e6b2044671bf51ef31bd206da8",
+    "semantic_hash": "36d842e6b2044671bf51ef31bd206da8"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/main.html": {
+    "mtime": 1781679497.808335,
+    "ast_hash": "edbd1c228163fcfde891867c06350ce7",
+    "semantic_hash": "edbd1c228163fcfde891867c06350ce7"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/robots.txt": {
+    "mtime": 1781690339.0944343,
+    "ast_hash": "5993b6497a30c85a72394f1416ec0ad3",
+    "semantic_hash": "5993b6497a30c85a72394f1416ec0ad3"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/suggest-tab.html": {
+    "mtime": 1781679156.0311637,
+    "ast_hash": "6277eba2cbf5512d3cb0d14be9caaf8e",
+    "semantic_hash": "6277eba2cbf5512d3cb0d14be9caaf8e"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/system-tab.html": {
+    "mtime": 1781600970.7063723,
+    "ast_hash": "e7ff374c9bea092182b2959fe6471822",
+    "semantic_hash": "e7ff374c9bea092182b2959fe6471822"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/scripts/AGENTS.md": {
+    "mtime": 1781622645.1876621,
+    "ast_hash": "b347884112ccd9dc420e3ddc11872da5",
+    "semantic_hash": "b347884112ccd9dc420e3ddc11872da5"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/sql/AGENTS.md": {
+    "mtime": 1781622613.6955757,
+    "ast_hash": "6b56da4553379cdbc34adc641eb6cbfb",
+    "semantic_hash": "6b56da4553379cdbc34adc641eb6cbfb"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/api/AGENTS.md": {
+    "mtime": 1781622806.4006934,
+    "ast_hash": "04045f3d58fec7656618c51401bd28a7",
+    "semantic_hash": "04045f3d58fec7656618c51401bd28a7"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/db/AGENTS.md": {
+    "mtime": 1781622740.144817,
+    "ast_hash": "0d4b57d4c1f48bb64905a6e2451e3f73",
+    "semantic_hash": "0d4b57d4c1f48bb64905a6e2451e3f73"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/lib/AGENTS.md": {
+    "mtime": 1781622765.628044,
+    "ast_hash": "79aeb56713ab36ce5e6c9ff1d0904ac3",
+    "semantic_hash": "79aeb56713ab36ce5e6c9ff1d0904ac3"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/search/AGENTS.md": {
+    "mtime": 1781622781.3087466,
+    "ast_hash": "4d9387902d346214863b5c977a6a8dfc",
+    "semantic_hash": "4d9387902d346214863b5c977a6a8dfc"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/sql/AGENTS.md": {
+    "mtime": 1781622830.9942565,
+    "ast_hash": "d881a6e13d3442f86cd9e36c3d8c0381",
+    "semantic_hash": "d881a6e13d3442f86cd9e36c3d8c0381"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/types/AGENTS.md": {
+    "mtime": 1781622815.4819677,
+    "ast_hash": "038dfdf186c8fb68e671b5babc85dc46",
+    "semantic_hash": "038dfdf186c8fb68e671b5babc85dc46"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/AGENTS.md": {
+    "mtime": 1781622694.821109,
+    "ast_hash": "9e345f68a18e3c6ce440547d05f79157",
+    "semantic_hash": "9e345f68a18e3c6ce440547d05f79157"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/tests/fixtures/data-gov-au-page.html": {
+    "mtime": 1781521054.4381955,
+    "ast_hash": "8382ccc921db37d9b903cb72be3663b4",
+    "semantic_hash": "8382ccc921db37d9b903cb72be3663b4"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/pages/assets/favicon.svg": {
+    "mtime": 1781427040.2809215,
+    "ast_hash": "06a87aa6946ec625f35aefff498e8d08",
+    "semantic_hash": "06a87aa6946ec625f35aefff498e8d08"
+  },
+  "/Users/lst97/Downloads/g-naf_may26_allstates_gda2020_psv_1023/gnaf-autocomplete/src/lib/constants.ts": {
+    "mtime": 1781771520.5057874,
+    "ast_hash": "f3b9e65402577b0d79252202e2227c23",
+    "semantic_hash": "f3b9e65402577b0d79252202e2227c23"
+  }
+}

@@ -43,3 +43,6 @@ openspec
 .opencode
 .omo
 .codegraph
+
+graphify-out/cost.json
+graphify-out/cache/

@@ -1,0 +1,100 @@
+name: Performance Report
+description: Report a performance regression or suggest a performance improvement
+title: "perf(scope): "
+labels: ["performance"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Performance is a core feature of this project (target: p95 < 50ms).
+        Please provide detailed before/after numbers.
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Report Type
+      options:
+        - Regression (performance got worse)
+        - Optimisation opportunity
+        - Benchmark suggestion
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      options:
+        - Query Router (tier selection)
+        - Database Query (specific tier)
+        - Index (missing / slow index)
+        - Loader (import speed)
+        - Corrector (SymSpell latency)
+        - Auth Middleware (API key verification)
+        - Cache (LRU hit rate)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: tier
+    attributes:
+      label: Query Tier (if applicable)
+      description: Which tier is affected? Check the `tier` field in the /suggest response.
+      placeholder: "tier1 / tier2 / tier4 / tier0_locality"
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current Performance
+      description: What are the current latency numbers? Include p50, p95, p99 if available.
+      placeholder: |
+        p50: 12ms
+        p95: 45ms
+        p99: 60ms
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Performance
+      description: What should the numbers be? What's the target?
+      placeholder: |
+        p50: <10ms
+        p95: <30ms
+        p99: <40ms
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Query Shape (for regression)
+      description: Provide an example query that demonstrates the regression.
+      placeholder: "/suggest?q=main+st+sydney&no_cache=1"
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Hardware and software configuration.
+      placeholder: |
+        - Hardware: MacBook Pro M5 Pro / AWS EC2 c7g.xlarge
+        - OS: macOS 26.5.1 / Ubuntu 24.04
+        - Bun: 1.3.14
+        - PostgreSQL: 18
+        - Docker memory: 16GB
+        - MV row count: 16,000,000
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I ran the benchmark with `?no_cache=1` (cold cache).
+          required: true
+        - label: I have searched existing issues to confirm this is not a duplicate.
+          required: true
+        - label: I included hardware and software environment details.
+          required: true

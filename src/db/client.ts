@@ -41,13 +41,19 @@ export function getReadWriteSql(): import("bun").SQL {
   return _sqlRw;
 }
 
-// idempotent guard prevents double-close, but we NEVER null _sql / _sqlRw
-// so that workers reused across test files (Bun reuses worker processes) can
-// continue using the same connection pool.  The OS / Bun will clean up
-// sockets when the process exits.
-let _closing = false;
-
+// Close database connections gracefully on shutdown.
+// In test mode this is a no-op because Bun reuses worker processes across
+// test files and ending the pool would force an expensive reconnect.
+// In production (NODE_ENV !== "test") we call .end() on each pool so the
+// DB server doesn't hold orphaned connections during Docker restarts.
+// We intentionally do NOT null _sql/_sqlRw — the OS cleans up at exit and
+// nulling would break any in-flight query that references the stale module
+// variable.
 export async function closeDb(): Promise<void> {
-  if (_closing) return;
-  _closing = true;
+  if (process.env.NODE_ENV !== "test") {
+    // postgres.js/ Bun.sql .end() closes all idle connections, waits for
+    // active queries to finish, then resolves.
+    if (_sql) await _sql.end();
+    if (_sqlRw) await _sqlRw.end();
+  }
 }
