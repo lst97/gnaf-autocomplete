@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { AppError, DatabaseError, ERROR_CODES, ValidationError } from "../../src/lib/errors";
+import { AppError, ERROR_CODES, ValidationError } from "../../src/lib/errors";
 
 describe("AppError", () => {
   test("creates with default values", () => {
@@ -36,16 +36,6 @@ describe("ValidationError", () => {
   });
 });
 
-describe("DatabaseError", () => {
-  test("creates with 500 status", () => {
-    const err = new DatabaseError("connection failed");
-    expect(err.statusCode).toBe(500);
-    expect(err.code).toBe("DATABASE_ERROR");
-    expect(err.name).toBe("DatabaseError");
-    expect(err.message).toBe("connection failed");
-  });
-});
-
 describe("ERROR_CODES registry", () => {
   test("contains all required error codes", () => {
     expect(ERROR_CODES.VALIDATION_ERROR).toBe("VALIDATION_ERROR");
@@ -67,10 +57,8 @@ describe("ERROR_CODES registry", () => {
 
   test("error subclasses use codes from the registry", () => {
     const ve = new ValidationError("test");
-    const de = new DatabaseError("test");
     const ae = new AppError("test");
     expect(Object.values(ERROR_CODES)).toContain(ve.code);
-    expect(Object.values(ERROR_CODES)).toContain(de.code);
     expect(Object.values(ERROR_CODES)).toContain(ae.code);
   });
 

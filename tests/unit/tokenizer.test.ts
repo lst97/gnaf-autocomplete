@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { Corrector, resetCorrector, setCorrector } from "../../src/search/corrector";
 import {
+  combineMultiWordLocality,
   correctStateToken,
   detectPostcodeFilter,
   detectStateFilter,
+  extractStreetTypeAbbrev,
+  isAlphanumericJunkToken,
   tokenizeQuery,
 } from "../../src/search/tokenizer";
 
@@ -767,29 +770,6 @@ describe("tokenizeQuery — additional edge cases", () => {
     expect(t.startsWithNumber).toBe(true);
   });
 
-  test("isPurePrefix is true for short queries", () => {
-    const t = tokenizeQuery("syd");
-    expect(t.isPurePrefix).toBe(true);
-  });
-
-  test("isPurePrefix is true when each token ≤4 chars", () => {
-    // "2000" is 4 chars → length <= 4 → qualifies as pure prefix
-    // isPurePrefix = every token is ≤4 chars or fully alphabetic
-    const t = tokenizeQuery("main street sydney nsw 2000");
-    expect(t.isPurePrefix).toBe(true);
-  });
-
-  test("isPurePrefix is false for mixed short+long tokens", () => {
-    const t = tokenizeQuery("abcdefghij klmnopqrs");
-    // "abcdefghij" is 10 chars and is alphabetic, so it qualifies
-    expect(t.isPurePrefix).toBe(true);
-  });
-
-  test("isPurePrefix is false for token >4 chars containing non-alpha", () => {
-    const t = tokenizeQuery("abc12345");
-    // "abc12345" is 8 chars and contains digits → not pure prefix
-    expect(t.isPurePrefix).toBe(false);
-  });
 });
 
 describe("tokenizer preprocessing pipeline — failure mode guards", () => {
@@ -931,5 +911,138 @@ describe("tokenizer preprocessing pipeline — failure mode guards", () => {
     // Use flatTypeAhead = isFlatTypePrefixed || FLAT_TYPE_LC.has(tokens[0])
     expect(t.streetNumber).toBe(12);
     expect(t.streetPrefix).toBe("main");
+  });
+});
+
+describe("extractStreetTypeAbbrev", () => {
+  test("extracts 'st' from 'main st'", () => {
+    expect(extractStreetTypeAbbrev(["main", "st"])).toBe("st,");
+  });
+
+  test("extracts 'rd' from 'high rd'", () => {
+    expect(extractStreetTypeAbbrev(["high", "rd"])).toBe("rd,");
+  });
+
+  test("normalises 'street' to 'st'", () => {
+    expect(extractStreetTypeAbbrev(["main", "street"])).toBe("st,");
+  });
+
+  test("strips leading/trailing commas from tokens", () => {
+    expect(extractStreetTypeAbbrev(["main", ",st,"])).toBe("st,");
+  });
+
+  test("returns null when no token is a street type", () => {
+    expect(extractStreetTypeAbbrev(["sydney", "waverley"])).toBeNull();
+  });
+
+  test("returns first match in token order", () => {
+    // "st" comes before "rd" → "st," wins
+    expect(extractStreetTypeAbbrev(["main", "st", "cross", "rd"])).toBe("st,");
+  });
+
+  test("exposed via TokenizedQuery.streetTypeAbbrev", () => {
+    const t = tokenizeQuery("12 main st sydney");
+    expect(t.streetTypeAbbrev).toBe("st,");
+  });
+});
+
+describe("combineMultiWordLocality", () => {
+  test("combines penultimate alphabetic token with locality", () => {
+    expect(combineMultiWordLocality("huntly", ["glen", "huntly"])).toBe("glen huntly");
+  });
+
+  test("skips when locality is null", () => {
+    expect(combineMultiWordLocality(null, ["glen", "huntly"])).toBeNull();
+  });
+
+  test("skips when fewer than 2 tokens", () => {
+    expect(combineMultiWordLocality("huntly", ["huntly"])).toBe("huntly");
+  });
+
+  test("does not combine when penultimate is a street type", () => {
+    // "main st" → penultimate "main" is NOT a street type, but penultimate is "st"
+    // — but in our function, the penultimate is the SECOND-TO-LAST token, which
+    // for ["main", "st", "sydney"] is "st". "st" IS in STREET_TYPE_LC, so no boost.
+    expect(combineMultiWordLocality("sydney", ["main", "st", "sydney"])).toBe("sydney");
+  });
+
+  test("does not combine when penultimate is a digit", () => {
+    expect(combineMultiWordLocality("sydney", ["12", "sydney"])).toBe("sydney");
+  });
+
+  test("does not combine when penultimate is shorter than 2 chars", () => {
+    expect(combineMultiWordLocality("sydney", ["a", "sydney"])).toBe("sydney");
+  });
+
+  test("exposed via TokenizedQuery.localityPrefix (multi-word boost applied)", () => {
+    const t = tokenizeQuery("12 main mount waverley");
+    expect(t.localityPrefix).toBe("mount waverley");
+  });
+});
+
+describe("isAlphanumericJunkToken (regression: 12abc took 15s)", () => {
+  test("flags '12abc' as junk", () => {
+    expect(isAlphanumericJunkToken("12abc")).toBe(true);
+  });
+
+  test("flags '1abc' (≥2 trailing letters) as junk", () => {
+    expect(isAlphanumericJunkToken("1abc")).toBe(true);
+  });
+
+  test("flags '1234abc' (any length, ≥2 trailing letters) as junk", () => {
+    expect(isAlphanumericJunkToken("1234abc")).toBe(true);
+  });
+
+  test("does NOT flag '12a' (single trailing letter is valid AU street number)", () => {
+    expect(isAlphanumericJunkToken("12a")).toBe(false);
+  });
+
+  test("does NOT flag '1a' (single trailing letter)", () => {
+    expect(isAlphanumericJunkToken("1a")).toBe(false);
+  });
+
+  test("does NOT flag pure digits like '12'", () => {
+    expect(isAlphanumericJunkToken("12")).toBe(false);
+  });
+
+  test("does NOT flag pure letters like 'abc'", () => {
+    expect(isAlphanumericJunkToken("abc")).toBe(false);
+  });
+
+  test("does NOT flag '21st' (street-type abbreviation — user input)", () => {
+    expect(isAlphanumericJunkToken("21st")).toBe(false);
+  });
+
+  test("does NOT flag '99rd'", () => {
+    expect(isAlphanumericJunkToken("99rd")).toBe(false);
+  });
+
+  test("case-insensitive: '12ABC' is junk", () => {
+    expect(isAlphanumericJunkToken("12ABC")).toBe(true);
+  });
+
+  test("'12abc' produces null localityPrefix so router short-circuits", () => {
+    const t = tokenizeQuery("12abc");
+    expect(t.localityPrefix).toBeNull();
+    expect(t.streetPrefix).toBeNull();
+    expect(t.streetNumber).toBeNull();
+  });
+
+  test("'1a' still produces streetNumber=1 (legitimate AU format)", () => {
+    const t = tokenizeQuery("1a");
+    expect(t.streetNumber).toBe(1);
+    expect(t.numberSuffix).toBe("a");
+  });
+
+  test("'12a main st' still produces tier1 routing (legitimate AU format)", () => {
+    const t = tokenizeQuery("12a main st");
+    expect(t.streetNumber).toBe(12);
+    expect(t.streetPrefix).toBe("main");
+    expect(t.numberSuffix).toBe("a");
+    expect(t.streetTypeAbbrev).toBe("st,");
+  });
+
+  test("'21st main st' is NOT junk (street-type abbreviation is valid)", () => {
+    expect(isAlphanumericJunkToken("21st")).toBe(false);
   });
 });
