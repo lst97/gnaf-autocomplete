@@ -33,7 +33,9 @@ export class LruCache<K, V> {
   }
 
   set(key: K, value: V): void {
-    this.evictStale();
+    // Stale entries are removed lazily on the next get()/has() call (see
+    // AGENTS.md convention: "LRU TTL check happens on every get() AND has()
+    // — not just on set()"). Skipping the O(n) scan here keeps set() O(1).
 
     if (this.map.has(key)) {
       this.map.delete(key);
@@ -69,21 +71,13 @@ export class LruCache<K, V> {
   clear(): void {
     this.map.clear();
   }
-
-  private evictStale(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.map) {
-      if (now - entry.ts > this.ttlMs) {
-        this.map.delete(key);
-      }
-    }
-  }
 }
 
 export interface CachedSuggestResponse {
   results: Array<{
     id: string;
     display: string;
+    locality: string;
     lat: number | null;
     lon: number | null;
     state: string;

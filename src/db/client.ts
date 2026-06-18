@@ -41,13 +41,10 @@ export function getReadWriteSql(): import("bun").SQL {
   return _sqlRw;
 }
 
-// idempotent guard prevents double-close, but we NEVER null _sql / _sqlRw
-// so that workers reused across test files (Bun reuses worker processes) can
-// continue using the same connection pool.  The OS / Bun will clean up
-// sockets when the process exits.
-let _closing = false;
-
-export async function closeDb(): Promise<void> {
-  if (_closing) return;
-  _closing = true;
-}
+// Intentionally a no-op. The postgres.js pool is reused across test files
+// (Bun reuses worker processes), so nulling _sql/_sqlRw here would force a
+// reconnect on every test file boundary. The OS cleans up sockets at exit.
+// Callers (src/index.ts shutdown, afterAll hooks) should call this purely
+// for shutdown symmetry, not for state reset. For state reset between tests
+// use the targeted helpers: resetSuggestCache(), resetCorrector().
+export async function closeDb(): Promise<void> {}

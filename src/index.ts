@@ -69,21 +69,30 @@ const app = new Elysia({ serve: { maxRequestBodySize: 64 * 1024 } })
     set.headers["X-Frame-Options"] ??= "DENY";
   })
   // === Global error handler (must run before middleware) ===
-  .onError(({ code, error, set, requestMeta, _startTime }) => {
+  .onError(({ code, error, set, request, requestMeta, _startTime }) => {
     const tookMs = _startTime != null ? Math.round(performance.now() - _startTime) : 0;
     const meta: ResponseMeta = {
       request_id: requestMeta?.request_id ?? "unknown",
       took_ms: tookMs,
       timestamp: new Date().toISOString(),
     };
+    const route = request ? new URL(request.url).pathname : "unknown";
 
     if (error instanceof AppError) {
+      logger.warn(
+        { error_code: error.code, status: error.statusCode, route, request_id: meta.request_id },
+        "request_error",
+      );
       set.status = error.statusCode;
       set.headers ??= {};
       set.headers["X-Request-Id"] = meta.request_id;
       return { error: error.message as string, code: error.code, meta };
     }
     if (code === "NOT_FOUND") {
+      logger.warn(
+        { error_code: ERROR_CODES.NOT_FOUND, status: 404, route, request_id: meta.request_id },
+        "request_error",
+      );
       return new Response(
         `<!DOCTYPE html><html lang="en-AU"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>404 — G-NAF Address Autocomplete</title><link rel="stylesheet" href="/style.css"></head><body><div class="page-header"><h1>🏠 G-NAF Address Autocomplete <small>16M Australian addresses</small></h1><div class="subtitle"><strong class="text-green">Address lookups should be free. Simple as that.</strong> &middot; <a href="/openapi" target="_blank">OpenAPI specs ↗</a> &middot; <a href="/analytics">📊 Analytics</a></div></div><div style="display:flex;align-items:center;justify-content:center;min-height:40vh;text-align:center"><div><h1 style="font-size:4rem;margin-bottom:0">404</h1><p style="font-size:1.2rem;color:var(--base00);margin-bottom:2rem">Page not found</p><p><a href="/" class="btn" style="text-decoration:none">← Back home</a></p></div></div><div class="page-footer"><svg class="gh-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span>G-NAF Address Autocomplete</span><span>&middot;</span><span>Service by <a href="https://www.lst97.dev" target="_blank" rel="noopener">lst97.dev</a></span><span>&middot;</span><a href="https://github.com/lst97/gnaf-autocomplete" target="_blank" rel="noopener">Source ↗</a><span>&middot;</span><span>G-NAF &copy; Geoscape Australia CC BY 4.0</span></div></body></html>`,
         {
@@ -93,6 +102,15 @@ const app = new Elysia({ serve: { maxRequestBodySize: 64 * 1024 } })
       );
     }
     if (code === "VALIDATION") {
+      logger.warn(
+        {
+          error_code: ERROR_CODES.VALIDATION_ERROR,
+          status: 400,
+          route,
+          request_id: meta.request_id,
+        },
+        "request_error",
+      );
       return new Response(
         JSON.stringify({ error: "Validation failed", code: ERROR_CODES.VALIDATION_ERROR, meta }),
         {
@@ -101,7 +119,16 @@ const app = new Elysia({ serve: { maxRequestBodySize: 64 * 1024 } })
         },
       );
     }
-    logger.error({ code, error }, "Request error");
+    logger.error(
+      {
+        error_code: ERROR_CODES.INTERNAL_ERROR,
+        status: 500,
+        route,
+        request_id: meta.request_id,
+        error,
+      },
+      "request_error",
+    );
     return new Response(
       JSON.stringify({ error: "Internal server error", code: ERROR_CODES.INTERNAL_ERROR, meta }),
       {
@@ -214,7 +241,11 @@ const app = new Elysia({ serve: { maxRequestBodySize: 64 * 1024 } })
     // Start periodic G-NAF version check (runs every 24h, first check in 5s)
     startVersionCheckScheduler(getSql);
 
-    await ensureCorrector();
+    try {
+      await ensureCorrector();
+    } catch (err) {
+      logger.error({ err }, "Failed to load corrector at startup; queries will skip correction");
+    }
   })
   .listen(env.PORT);
 
