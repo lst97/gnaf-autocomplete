@@ -273,6 +273,23 @@ describe("isValidAddressQuery", () => {
     expect(isValidAddressQuery("12a main st")).toBe(true);
   });
 
+  // ── Ordinal street number queries (regression) ──
+  test("'2nd avenue' — ordinal street number passes (was falsely rejected)", () => {
+    expect(isValidAddressQuery("2nd avenue")).toBe(true);
+  });
+
+  test("'4th street' — ordinal street number passes (was falsely rejected)", () => {
+    expect(isValidAddressQuery("4th street")).toBe(true);
+  });
+
+  test("'2nd' — bare ordinal single token REJECTED (no street name)", () => {
+    expect(isValidAddressQuery("2nd")).toBe(false);
+  });
+
+  test("'4th' — bare ordinal single token REJECTED (no street name)", () => {
+    expect(isValidAddressQuery("4th")).toBe(false);
+  });
+
   // ── Rule 7: single-token queries must be searchable on their own ──
   test("'12' — pure 2-digit number REJECTED (no postcode, no street)", () => {
     expect(isValidAddressQuery("12")).toBe(false);

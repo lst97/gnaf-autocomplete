@@ -171,3 +171,10 @@ export const FLAT_TYPE_LC: ReadonlySet<string> = new Set([
   "fl",
   "floor",
 ]);
+
+// English ordinal suffixes used in numbered street names like "2nd AVE",
+// "4th ST", "1st AVE". These are NOT street types; adding them as allowed
+// trailing-letter patterns prevents isAlphanumericJunkToken from blocking
+// valid ordinal street-number queries. "st" and "rd" are already covered
+// by STREET_TYPE_LC.
+export const ORDINAL_SUFFIX_LC: ReadonlySet<string> = new Set(["nd", "th"]);

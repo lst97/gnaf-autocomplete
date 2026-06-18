@@ -1,5 +1,6 @@
 import {
   FLAT_TYPE_LC,
+  ORDINAL_SUFFIX_LC,
   STREET_TYPE_ABBREV,
   STREET_TYPE_LC,
   VALID_STATES,
@@ -77,7 +78,9 @@ export function isAlphanumericJunkToken(token: string): boolean {
   const match = /^\d+([a-z]{2,})$/i.exec(token);
   if (!match?.[1]) return false;
   const trailingLetters = match[1].toLowerCase();
-  return !STREET_TYPE_LC.has(trailingLetters);
+  // Allow street-type abbreviations ("st", "rd") and ordinal suffixes
+  // ("nd" for 2nd, "th" for 4th). Everything else is junk.
+  return !STREET_TYPE_LC.has(trailingLetters) && !ORDINAL_SUFFIX_LC.has(trailingLetters);
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -199,9 +202,19 @@ function parseCandidate(raw: string): ParsedCandidate {
   }
   if (PURE_DIGIT_RE.test(value)) return { kind: "number", value };
   if (ALPHA_NUM_SUFFIX_RE.test(value)) {
-    // Numeric part only — the suffix letter is handled by numberSuffix extraction.
+    // Single letter suffix — e.g., "12a" → street number 12 with suffix "a"
     const numericPart = value.replace(/[a-z]$/, "");
     return { kind: "alphanum", value: numericPart };
+  }
+  // Ordinal or street-type prefixed token like "2nd", "4th", "21st".
+  // These are street names (e.g. "2nd avenue"), not street numbers.
+  // Treat them as alphabetic street prefixes so they route to tier1.
+  const suffixMatch = /^\d+([a-z]{2,})$/i.exec(value);
+  if (suffixMatch?.[1]) {
+    const trailing = suffixMatch[1].toLowerCase();
+    if (STREET_TYPE_LC.has(trailing) || ORDINAL_SUFFIX_LC.has(trailing)) {
+      return { kind: "alpha", value };
+    }
   }
   if (ALPHA_START_RE.test(value)) return { kind: "alpha", value };
   return { kind: null, value };
@@ -212,10 +225,17 @@ function findPrefixToken(tokens: string[], startIdx: number): string | null {
     const t = tokens[i];
     if (!t) continue;
     const lc = t.toLowerCase();
+    // Also accept ordinal/street-type prefixed tokens like "2nd", "4th", "21st"
+    // as street prefixes (they're street names, not street numbers).
+    const suffixMatch = /^\d+([a-z]{2,})$/i.exec(t);
+    const isOrdinalPrefix =
+      suffixMatch?.[1] &&
+      (STREET_TYPE_LC.has(suffixMatch[1].toLowerCase()) ||
+        ORDINAL_SUFFIX_LC.has(suffixMatch[1].toLowerCase()));
     if (
       !VALID_STATES_LC.has(lc) &&
       !FLAT_TYPE_LC.has(lc) &&
-      ALPHA_START_RE.test(lc) &&
+      (ALPHA_START_RE.test(lc) || isOrdinalPrefix) &&
       t.length >= 1 &&
       // Reject state-correction tokens ("nzw" → NSW) as street prefixes.
       // Only for ≥3 chars; 2-char tokens are too ambiguous.

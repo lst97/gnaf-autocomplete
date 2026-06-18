@@ -1017,6 +1017,34 @@ describe("isAlphanumericJunkToken (regression: 12abc took 15s)", () => {
     expect(isAlphanumericJunkToken("99rd")).toBe(false);
   });
 
+  test("does NOT flag '2nd' (ordinal suffix for 2nd avenue)", () => {
+    expect(isAlphanumericJunkToken("2nd")).toBe(false);
+  });
+
+  test("does NOT flag '4th' (ordinal suffix for 4th street)", () => {
+    expect(isAlphanumericJunkToken("4th")).toBe(false);
+  });
+
+  test("'2nd avenue' tokenizer routes ordinal as street prefix (tier1)", () => {
+    const t = tokenizeQuery("2nd avenue");
+    expect(t.streetNumber).toBeNull();
+    expect(t.streetPrefix).toBe("2nd");
+    expect(t.localityPrefix).toBeNull();
+  });
+
+  test("'4th street' tokenizer routes ordinal as street prefix (tier1)", () => {
+    const t = tokenizeQuery("4th street");
+    expect(t.streetNumber).toBeNull();
+    expect(t.streetPrefix).toBe("4th");
+    expect(t.localityPrefix).toBeNull();
+  });
+
+  test("'12 2nd avenue' extracts house number + ordinal street prefix", () => {
+    const t = tokenizeQuery("12 2nd avenue");
+    expect(t.streetNumber).toBe(12);
+    expect(t.streetPrefix).toBe("2nd");
+  });
+
   test("case-insensitive: '12ABC' is junk", () => {
     expect(isAlphanumericJunkToken("12ABC")).toBe(true);
   });
