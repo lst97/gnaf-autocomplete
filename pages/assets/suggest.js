@@ -376,6 +376,21 @@ function initSuggest() {
         }
       }
     });
+    const toggleBtn = document.getElementById("suggestApiKeyToggle");
+    if (toggleBtn) {
+      const openEye = toggleBtn.querySelector(".pw-eye-open");
+      const closedEye = toggleBtn.querySelector(".pw-eye-closed");
+      if (openEye) openEye.style.display = "";
+      if (closedEye) closedEye.style.display = "none";
+      toggleBtn.addEventListener("click", () => {
+        const isPassword = suggestKeyInput.type === "password";
+        suggestKeyInput.type = isPassword ? "text" : "password";
+        toggleBtn.title = isPassword ? "Hide API key" : "Show API key";
+        if (openEye) openEye.style.display = isPassword ? "none" : "";
+        if (closedEye) closedEye.style.display = isPassword ? "" : "none";
+        suggestKeyInput.focus();
+      });
+    }
   }
 
   acInput.addEventListener("input", () => {

@@ -5,9 +5,15 @@
     </p>
     <div class="api-key-bar" style="margin-bottom:12px">
       <label for="suggestApiKey">API Key</label>
-      <input type="text" id="suggestApiKey" placeholder="Paste your gnaf_pk_... key here" autocomplete="off" spellcheck="false" style="flex:1;min-width:150px;font-size:var(--fs-sm);padding:5px 8px;font-family:var(--mono)">
+      <div class="pw-wrap">
+        <input type="password" id="suggestApiKey" placeholder="Paste your gnaf_pk_... key here" autocomplete="off" spellcheck="false">
+        <button type="button" id="suggestApiKeyToggle" class="pw-toggle" title="Show API key" tabindex="-1" aria-label="Toggle API key visibility">
+          <svg class="pw-eye pw-eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><title>Show</title><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="pw-eye pw-eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><title>Hide</title><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+      </div>
       <button type="button" id="suggestApiKeySave" class="btn btn-sm btn-green">Save</button>
-      <span id="suggestApiKeyStatus" style="font-family:var(--mono);font-size:var(--fs-xs)">No key set</span>
+      <span id="suggestApiKeyStatus" class="api-key-status">No key set</span>
     </div>
     <div class="ac-wrap">
       <input class="ac-input" id="acInput" type="search" placeholder="Type an Australian address… e.g. 12 main st sydney" spellcheck="false">
