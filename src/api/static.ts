@@ -98,7 +98,7 @@ export const staticRoute = new Elysia()
     "/openapi",
     () => {
       const cdn =
-        "https://cdn.jsdelivr.net/npm/@scalar/api-reference@latest/dist/browser/standalone.min.js";
+        "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.60.0/dist/browser/standalone.min.js";
       return new Response(
         "<!doctype html>" +
           "<html><head>" +
@@ -113,7 +113,7 @@ export const staticRoute = new Elysia()
           '" crossorigin></' +
           "script>" +
           "<script>" +
-          'var cfg={url:"openapi/json",theme:"solarized"};' +
+          'var cfg={url:"/openapi/json",theme:"solarized"};' +
           'try{var k=localStorage.getItem("gnaf_api_key");' +
           "if(k)cfg.authentication={" +
           'preferredSecurityScheme:"apiKey",' +
