@@ -274,9 +274,7 @@ function extractLeadingParts(tokens: string[]): LeadingParts {
     const nextStr = tokens[idx + 1];
     if (nextStr && (PURE_DIGIT_RE.test(nextStr) || nextStr.includes("-"))) {
       // streetNumber comes from the next token (pure digit) — no suffix.
-      const streetNum = nextStr.includes("-")
-        ? Number(nextStr.split("-")[0])
-        : Number(nextStr);
+      const streetNum = nextStr.includes("-") ? Number(nextStr.split("-")[0]) : Number(nextStr);
       return {
         streetNumber: streetNum,
         streetPrefix: findPrefixToken(tokens, idx + 2),
@@ -295,9 +293,7 @@ function extractLeadingParts(tokens: string[]): LeadingParts {
   if (pc.kind === "number") {
     const nextStr = tokens[idx + 1];
     if (nextStr && (PURE_DIGIT_RE.test(nextStr) || nextStr.includes("-"))) {
-      const streetNum = nextStr.includes("-")
-        ? Number(nextStr.split("-")[0])
-        : Number(nextStr);
+      const streetNum = nextStr.includes("-") ? Number(nextStr.split("-")[0]) : Number(nextStr);
       return {
         streetNumber: streetNum,
         streetPrefix: findPrefixToken(tokens, idx + 2),
