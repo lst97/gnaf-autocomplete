@@ -41,8 +41,11 @@ export function isValidAddressQuery(q: string): boolean {
   // 3. Pure state code is not useful for autocomplete
   if (VALID_STATES.has(q.trim().toUpperCase())) return false;
 
-  // 4. No 3+ consecutive digit-only tokens
-  const tokens = q.split(/\s+/);
+  // 4. No 3+ consecutive digit-only tokens.
+  // Split on whitespace AND '/' to match tokenizeQuery's tokenization — this
+  // prevents slash-delimited junk like "12abc/5" from bypassing the junk-token
+  // guard (rule 6) while keeping legitimate slash patterns like "1/6" intact.
+  const tokens = q.split(/[/\s]+/);
   let consecutiveDigitTokens = 0;
   for (const token of tokens) {
     if (/^\d+$/.test(token)) {

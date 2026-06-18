@@ -257,6 +257,19 @@ describe("isValidAddressQuery", () => {
     expect(isValidAddressQuery("sydney 12abc")).toBe(false);
   });
 
+  // ── Slash-delimited junk (tokenization mismatch regression) ──
+  test("'12abc/5' — slash-delimited junk is rejected (was bypassing)", () => {
+    expect(isValidAddressQuery("12abc/5")).toBe(false);
+  });
+
+  test("'12abc/5 main st' — slash-delimited junk in multi-token query rejected", () => {
+    expect(isValidAddressQuery("12abc/5 main st")).toBe(false);
+  });
+
+  test("'1/6 fortuna' — legitimate slash flat-pattern still passes", () => {
+    expect(isValidAddressQuery("1/6 fortuna")).toBe(true);
+  });
+
   test("'21st' — single alphanumeric street-type token REJECTED (was tier2 slow path)", () => {
     expect(isValidAddressQuery("21st")).toBe(false);
   });
