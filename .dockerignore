@@ -22,6 +22,9 @@ openspec
 .vscode
 .DS_Store
 
+# Knowledge graph artifacts (not needed in production image)
+graphify-out/
+
 # Dependencies (installed via bun install in Dockerfile)
 node_modules
 
